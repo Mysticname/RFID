@@ -1,4 +1,4 @@
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 1   
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 1   
 
 
 C51 COMPILER V9.53.0.0, COMPILATION OF MODULE MAIN
@@ -10,1216 +10,1685 @@ line level    source
    1          #include <reg52.h>
    2          #include <intrins.h>
    3          
-   4          //#region W5500寄存器地址定义
-   5          // W5500寄存器地址定义
-   6          #define W5500_MR        0x0000  // 模式寄存器
-   7          #define W5500_GAR       0x0001  // 网关地址寄存器
-   8          #define W5500_SUBR      0x0005  // 子网掩码寄存器
-   9          #define W5500_SHAR      0x0009  // 源MAC地址寄存器
-  10          #define W5500_SIPR      0x000F  // 源IP地址寄存器
-  11          #define W5500_RTR       0x0019  // 重传超时寄存器
-  12          #define W5500_RCR       0x001B  // 重传计数寄存器
+   4          // 定义倒计时时间（20分钟）
+   5          #define COUNTDOWN_MINUTES 20
+   6          
+   7          
+   8          // 倒计时结束标志
+   9          bit countdownFinished = 0;
+  10          
+  11          // 倒计时开始时间（存储为秒）
+  12          unsigned long startTime = 0;
   13          
-  14          // Socket寄存器偏移
-  15          #define Sn_MR           0x0000  // Socket模式寄存器
-  16          #define Sn_CR           0x0001  // Socket命令寄存器
-  17          #define Sn_IR           0x0002  // Socket中断寄存器
-  18          #define Sn_SR           0x0003  // Socket状态寄存器
-  19          #define Sn_PORT         0x0004  // Socket端口寄存器
-  20          #define Sn_DHAR         0x0006  // 目标MAC地址寄存器
-  21          #define Sn_DIPR         0x000C  // 目标IP地址寄存器
-  22          #define Sn_DPORT        0x0010  // 目标端口寄存器
-  23          #define Sn_MSSR         0x0012  // Socket最大段大小寄存器
-  24          #define Sn_TOS          0x0015  // Socket服务类型寄存器
-  25          #define Sn_TTL          0x0016  // Socket生存时间寄存器
-  26          #define Sn_RXBUF_SIZE   0x001E  // Socket接收缓冲区大小寄存器
-  27          #define Sn_TXBUF_SIZE   0x001F  // Socket发送缓冲区大小寄存器
-  28          #define Sn_TX_FSR       0x0020  // Socket发送空闲大小寄存器
-  29          #define Sn_TX_RD        0x0022  // Socket发送读指针寄存器
-  30          #define Sn_TX_WR        0x0024  // Socket发送写指针寄存器
-  31          #define Sn_RX_RSR       0x0026  // Socket接收大小寄存器
-  32          #define Sn_RX_RD        0x0028  // Socket接收读指针寄存器
-  33          #define Sn_RX_WR        0x002A  // Socket接收写指针寄存器
-  34          //#endregion
-  35          
-  36          //#region W5500 Socket命令和状态定义
-  37          // Socket命令
-  38          #define SOCK_OPEN_w55       0x01
-  39          #define SOCK_LISTEN_w55     0x02
-  40          #define SOCK_CONNECT_w55    0x04
-  41          #define SOCK_DISCON_w55     0x08
-  42          #define SOCK_CLOSE_w55      0x10
-  43          #define SOCK_SEND_w55       0x20
-  44          #define SOCK_SEND_MAC_w55   0x21
-  45          #define SOCK_SEND_KEEP_w55  0x22
-  46          #define SOCK_RECV_w55       0x40
-  47          
-  48          // Socket状态
-  49          #define SOCK_CLOSED_w55     0x00
-  50          #define SOCK_INIT_w55       0x13
-  51          #define SOCK_LISTENING_w55  0x14  // 修复：避免与SOCK_LISTEN命令冲突
-  52          #define SOCK_SYNSENT_w55    0x15
-  53          #define SOCK_SYNRECV_w55    0x16
-  54          #define SOCK_ESTABLISHED_w55 0x17
-  55          #define SOCK_FIN_WAIT_w55   0x18
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 2   
+  14          //#region W5500寄存器地址定义
+  15          // W5500寄存器地址定义
+  16          #define W5500_MR        0x0000  // 模式寄存器
+  17          #define W5500_GAR       0x0001  // 网关地址寄存器
+  18          #define W5500_SUBR      0x0005  // 子网掩码寄存器
+  19          #define W5500_SHAR      0x0009  // 源MAC地址寄存器
+  20          #define W5500_SIPR      0x000F  // 源IP地址寄存器
+  21          #define W5500_RTR       0x0019  // 重传超时寄存器
+  22          #define W5500_RCR       0x001B  // 重传计数寄存器
+  23          
+  24          // Socket寄存器偏移
+  25          #define Sn_MR           0x0000  // Socket模式寄存器
+  26          #define Sn_CR           0x0001  // Socket命令寄存器
+  27          #define Sn_IR           0x0002  // Socket中断寄存器
+  28          #define Sn_SR           0x0003  // Socket状态寄存器
+  29          #define Sn_PORT         0x0004  // Socket端口寄存器
+  30          #define Sn_DHAR         0x0006  // 目标MAC地址寄存器
+  31          #define Sn_DIPR         0x000C  // 目标IP地址寄存器
+  32          #define Sn_DPORT        0x0010  // 目标端口寄存器
+  33          #define Sn_MSSR         0x0012  // Socket最大段大小寄存器
+  34          #define Sn_TOS          0x0015  // Socket服务类型寄存器
+  35          #define Sn_TTL          0x0016  // Socket生存时间寄存器
+  36          #define Sn_RXBUF_SIZE   0x001E  // Socket接收缓冲区大小寄存器
+  37          #define Sn_TXBUF_SIZE   0x001F  // Socket发送缓冲区大小寄存器
+  38          #define Sn_TX_FSR       0x0020  // Socket发送空闲大小寄存器
+  39          #define Sn_TX_RD        0x0022  // Socket发送读指针寄存器
+  40          #define Sn_TX_WR        0x0024  // Socket发送写指针寄存器
+  41          #define Sn_RX_RSR       0x0026  // Socket接收大小寄存器
+  42          #define Sn_RX_RD        0x0028  // Socket接收读指针寄存器
+  43          #define Sn_RX_WR        0x002A  // Socket接收写指针寄存器
+  44          //#endregion
+  45          
+  46          //#region W5500 Socket命令和状态定义
+  47          // Socket命令
+  48          #define SOCK_OPEN_w55       0x01
+  49          #define SOCK_LISTEN_w55     0x02
+  50          #define SOCK_CONNECT_w55    0x04
+  51          #define SOCK_DISCON_w55     0x08
+  52          #define SOCK_CLOSE_w55      0x10
+  53          #define SOCK_SEND_w55       0x20
+  54          #define SOCK_SEND_MAC_w55   0x21
+  55          #define SOCK_SEND_KEEP_w55  0x22
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 2   
 
-  56          #define SOCK_CLOSING_w55    0x1A
-  57          #define SOCK_TIME_WAIT_w55  0x1B
-  58          #define SOCK_CLOSE_WAIT_w55 0x1C
-  59          #define SOCK_LAST_ACK_w55   0x1D
-  60          #define SOCK_UDP_w55        0x22
-  61          #define SOCK_IPRAW_w55      0x32
-  62          #define SOCK_MACRAW_w55     0x42
-  63          #define SOCK_PPPOE_w55      0x5F
-  64          //#endregion
-  65          
-  66          //#region RC522引脚定义
-  67          // RC522引脚定义
-  68          sbit RC522_SDA  = P1^0;
-  69          sbit RC522_SCK  = P1^1;
-  70          sbit RC522_MOSI = P1^2;
-  71          sbit RC522_MISO = P1^3;
-  72          sbit RC522_RST  = P1^4;
-  73          //#endregion
-  74          
-  75          //#region W5500引脚定义
-  76          // W5500引脚定义
-  77          sbit W5500_SCLK = P2^0;  // SPI时钟
-  78          sbit W5500_SCS  = P2^1;  // SPI片选
-  79          sbit W5500_MOSI = P2^2;  // 主出从入
-  80          sbit W5500_MISO = P2^3;  // 主入从出
-  81          sbit W5500_INT  = P2^4;  // 中断引脚 - 未使用
-  82          sbit W5500_RST  = P2^5;  // 复位引脚
+  56          #define SOCK_RECV_w55       0x40
+  57          
+  58          // Socket状态
+  59          #define SOCK_CLOSED_w55     0x00
+  60          #define SOCK_INIT_w55       0x13
+  61          #define SOCK_LISTENING_w55  0x14  // 修复：避免与SOCK_LISTEN命令冲突
+  62          #define SOCK_SYNSENT_w55    0x15
+  63          #define SOCK_SYNRECV_w55    0x16
+  64          #define SOCK_ESTABLISHED_w55 0x17
+  65          #define SOCK_FIN_WAIT_w55   0x18
+  66          #define SOCK_CLOSING_w55    0x1A
+  67          #define SOCK_TIME_WAIT_w55  0x1B
+  68          #define SOCK_CLOSE_WAIT_w55 0x1C
+  69          #define SOCK_LAST_ACK_w55   0x1D
+  70          #define SOCK_UDP_w55        0x22
+  71          #define SOCK_IPRAW_w55      0x32
+  72          #define SOCK_MACRAW_w55     0x42
+  73          #define SOCK_PPPOE_w55      0x5F
+  74          //#endregion
+  75          
+  76          //#region RC522引脚定义
+  77          // RC522引脚定义
+  78          sbit RC522_SDA  = P1^0;
+  79          sbit RC522_SCK  = P1^1;
+  80          sbit RC522_MOSI = P1^2;
+  81          sbit RC522_MISO = P1^3;
+  82          sbit RC522_RST  = P1^4;
   83          //#endregion
   84          
-  85          //#region W5500网络配置变量
-  86          // 网络配置 - 根据您的网络环境配置
-  87          // 设置W5500的IP地址，与您的电脑在同一网段
-  88          unsigned char local_ip_w55[4] = {192, 168, 31, 56};     // W5500的IP地址
-  89          unsigned char subnet_w55[4] = {255, 255, 255, 0};        // 子网掩码，与您的网络一致
-  90          unsigned char gateway_w55[4] = {192, 168, 31, 1};      // 网关地址，与您的默认网关一致
-  91          unsigned char mac_addr_w55[6] = {0x00, 0x08, 0xDC, 0x11, 0x11, 0x11}; // MAC地址
-  92          
-  93          //#region 控制指令定义
-  94          // 控制指令定义
-  95          #define CMD_ERROR    '0'
-  96          #define CMD_CONTROL1 '1'
-  97          #define CMD_CONTROL2 '2'
-  98          #define CMD_CONTROL3 '3'
-  99          
- 100          // 控制状态结构体
- 101          typedef struct {
- 102              unsigned char device_status;      // 设备状态
- 103              unsigned char control1_active;    // 控制1状态
- 104              unsigned char control2_active;    // 控制2状态
- 105              unsigned char control3_active;    // 控制3状态
- 106              unsigned int last_command_time;   // 最后指令时间(简化为16位)
- 107          } ControlStatus;
- 108          
- 109          //==============================================================================
- 110          // 全局变量
- 111          //==============================================================================
- 112          ControlStatus control_status = {0, 0, 0, 0, 0};
- 113          
- 114          // 串口初始化标志位
- 115          bit uart_initialized = 0;
- 116          
- 117          //==============================================================================
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 3   
+  85          //#region W5500引脚定义
+  86          // W5500引脚定义
+  87          sbit W5500_SCLK = P2^0;  // SPI时钟
+  88          sbit W5500_SCS  = P2^1;  // SPI片选
+  89          sbit W5500_MOSI = P2^2;  // 主出从入
+  90          sbit W5500_MISO = P2^3;  // 主入从出
+  91          sbit W5500_INT  = P2^4;  // 中断引脚 - 未使用
+  92          sbit W5500_RST  = P2^5;  // 复位引脚
+  93          //#endregion
+  94          
+  95          //#region W5500网络配置变量
+  96          // 网络配置 - 根据您的网络环境配置
+  97          // 设置W5500的IP地址，与您的电脑在同一网段
+  98          unsigned char local_ip_w55[4] = {192, 168, 31, 56};     // W5500的IP地址
+  99          unsigned char subnet_w55[4] = {255, 255, 255, 0};        // 子网掩码，与您的网络一致
+ 100          unsigned char gateway_w55[4] = {192, 168, 31, 1};      // 网关地址，与您的默认网关一致
+ 101          unsigned char mac_addr_w55[6] = {0x00, 0x08, 0xDC, 0x11, 0x11, 0x11}; // MAC地址
+ 102          
+ 103          //#region 控制指令定义
+ 104          // 控制指令定义
+ 105          #define CMD_ERROR    '0'
+ 106          #define CMD_CONTROL1 '1'
+ 107          #define CMD_CONTROL2 '2'
+ 108          #define CMD_CONTROL3 '3'
+ 109          
+ 110          // 控制状态结构体
+ 111          typedef struct {
+ 112              unsigned char device_status;      // 设备状态
+ 113              unsigned char control1_active;    // 控制1状态
+ 114              unsigned char control2_active;    // 控制2状态
+ 115              unsigned char control3_active;    // 控制3状态
+ 116              unsigned int last_command_time;   // 最后指令时间(简化为16位)
+ 117          } ControlStatus;
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 3   
 
- 118          // 函数声明
+ 118          
  119          //==============================================================================
- 120          void UART_Send_String_w55(unsigned char *str);
- 121          void UART_Send_Char_w55(unsigned char c);
- 122          unsigned char receive_control_command_w55(void);
- 123          unsigned char process_control_command_w55(unsigned char command);
- 124          unsigned char execute_reset_w55(void);
- 125          unsigned char Get_Socket_Status_w55(unsigned char socket);
- 126          void TCP_Send_Data_w55(unsigned char socket, unsigned char *buf, unsigned int len);
- 127          void send_result_to_backend_w55(unsigned char command, unsigned char result);
- 128          unsigned int TCP_Recv_Data_w55(unsigned char socket, unsigned char *buf, unsigned int max_len);
+ 120          // 全局变量
+ 121          //==============================================================================
+ 122          ControlStatus control_status = {0, 0, 0, 0, 0};
+ 123          
+ 124          // 串口初始化标志位
+ 125          bit uart_initialized = 0;
+ 126          
+ 127          //==============================================================================
+ 128          // 函数声明
  129          //==============================================================================
- 130          
- 131          
- 132          
- 133          
- 134          
- 135          
- 136          
- 137          
- 138          
- 139          // ===================================
+ 130          void UART_Send_String_w55(unsigned char *str);
+ 131          void UART_Send_Char_w55(unsigned char c);
+ 132          unsigned char receive_control_command_w55(void);
+ 133          unsigned char process_control_command_w55(unsigned char command);
+ 134          unsigned char execute_reset_w55(void);
+ 135          unsigned char Get_Socket_Status_w55(unsigned char socket);
+ 136          void TCP_Send_Data_w55(unsigned char socket, unsigned char *buf, unsigned int len);
+ 137          void send_result_to_backend_w55(unsigned char command, unsigned char result);
+ 138          unsigned int TCP_Recv_Data_w55(unsigned char socket, unsigned char *buf, unsigned int max_len);
+ 139          //==============================================================================
  140          
- 141          /**
- 142           * @brief 向后端发送指令执行结果
- 143           * @param command: 原始指令
- 144           * @param result: 执行结果 (1-成功, 0-失败)
- 145           */
- 146          void send_result_to_backend_w55(unsigned char command, unsigned char result)
- 147          {
- 148   1          unsigned char response[16];  // 响应缓冲区
- 149   1          unsigned char response_len = 0;  // 响应长度
- 150   1      
- 151   1          if (result) {
- 152   2              // ?? 成功响应："OK:X"
- 153   2              response[response_len++] = 'O';
- 154   2              response[response_len++] = 'K';
- 155   2              response[response_len++] = ':';
- 156   2              response[response_len++] = command;
- 157   2          } else {
- 158   2              // ?? 失败响应："ERR:X"
- 159   2              response[response_len++] = 'E';
- 160   2              response[response_len++] = 'R';
- 161   2              response[response_len++] = 'R';
- 162   2              response[response_len++] = ':';
- 163   2              response[response_len++] = command;
- 164   2          }
- 165   1      
- 166   1          response[response_len++] = '\r';
- 167   1          response[response_len++] = '\n';
- 168   1      
- 169   1          // ?? 通过W5500发送响应到后端
- 170   1          if (Get_Socket_Status_w55(0) == SOCK_ESTABLISHED_w55) {
- 171   2              TCP_Send_Data_w55(0, response, response_len);
- 172   2              UART_Send_String_w55("Result sent to backend: ");
- 173   2              response[response_len] = '\0';
- 174   2              UART_Send_String_w55(response);
- 175   2          }
- 176   1      }
- 177          
- 178          /**
- 179           * @brief 执行复位指令
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 4   
+ 141          //==============================================================================
+ 142          // 时钟和LCD
+ 143          //==============================================================================
+ 144          void Delay(unsigned int xms)
+ 145          {
+ 146   1        unsigned char i, j;
+ 147   1        while(xms--)
+ 148   1        {
+ 149   2          i = 2;
+ 150   2          j = 239;
+ 151   2          do
+ 152   2          {
+ 153   3            while (--j);
+ 154   3          } while (--i);
+ 155   2        }
+ 156   1      }
+ 157          
+ 158          //引脚定义
+ 159          sbit DS1302_SCLK=P3^7;
+ 160          sbit DS1302_IO=P3^6;
+ 161          sbit DS1302_CE=P3^5;
+ 162          
+ 163          //寄存器写入地址/指令定义
+ 164          #define DS1302_SECOND   0x80
+ 165          #define DS1302_MINUTE   0x82
+ 166          #define DS1302_HOUR     0x84
+ 167          #define DS1302_DATE     0x86
+ 168          #define DS1302_MONTH    0x88
+ 169          #define DS1302_DAY      0x8A
+ 170          #define DS1302_YEAR     0x8C
+ 171          #define DS1302_WP     0x8E
+ 172          
+ 173          //时间数组，索引0~6分别为年、月、日、时、分、秒、星期
+ 174          unsigned char DS1302_Time[]={19,11,16,12,59,55,6};
+ 175          
+ 176          /**
+ 177            * @brief  DS1302初始化
+ 178            * @param  无
+ 179            * @retval 无
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 4   
 
- 180           */
- 181          unsigned char execute_reset_w55(void)
+ 180            */
+ 181          void DS1302_Init(void)
  182          {
- 183   1          // ?? 复位设备状态
- 184   1          P3 = 0x00;  // 清除所有输出
- 185   1      
- 186   1          UART_Send_String_w55("Device reset completed\r\n");
- 187   1          return 1;
- 188   1      }
- 189          
- 190          /**
- 191           * @brief 执行控制指令1
- 192           */
- 193          unsigned char execute_control1_w55(void)
+ 183   1        DS1302_CE=0;
+ 184   1        DS1302_SCLK=0;
+ 185   1      }
+ 186          
+ 187          /**
+ 188            * @brief  DS1302写一个字节
+ 189            * @param  Command 命令字/地址
+ 190            * @param  Data 要写入的数据
+ 191            * @retval 无
+ 192            */
+ 193          void DS1302_WriteByte(unsigned char Command,Data)
  194          {
- 195   1          // ?? 根据您的实际需求修改
- 196   1          // P3_0 = 1;  // 控制某个设备
- 197   1      
- 198   1          UART_Send_String_w55("Control 1 executed\r\n");
- 199   1          return 1;
- 200   1      }
- 201          
- 202          /**
- 203           * @brief 执行控制指令2
- 204           */
- 205          unsigned char execute_control2_w55(void)
- 206          {
- 207   1          // ?? 根据您的实际需求修改
- 208   1          // P3_1 = 1;  // 控制另一个设备
- 209   1      
- 210   1          UART_Send_String_w55("Control 2 executed\r\n");
- 211   1          return 1;
- 212   1      }
- 213          
- 214          /**
- 215           * @brief 执行控制指令3
- 216           */
- 217          unsigned char execute_control3_w55(void)
+ 195   1        unsigned char i;
+ 196   1        DS1302_CE=1;
+ 197   1        for(i=0;i<8;i++)
+ 198   1        {
+ 199   2          DS1302_IO=Command&(0x01<<i);
+ 200   2          DS1302_SCLK=1;
+ 201   2          DS1302_SCLK=0;
+ 202   2        }
+ 203   1        for(i=0;i<8;i++)
+ 204   1        {
+ 205   2          DS1302_IO=Data&(0x01<<i);
+ 206   2          DS1302_SCLK=1;
+ 207   2          DS1302_SCLK=0;
+ 208   2        }
+ 209   1        DS1302_CE=0;
+ 210   1      }
+ 211          
+ 212          /**
+ 213            * @brief  DS1302读一个字节
+ 214            * @param  Command 命令字/地址
+ 215            * @retval 读出的数据
+ 216            */
+ 217          unsigned char DS1302_ReadByte(unsigned char Command)
  218          {
- 219   1          // ?? 状态查询或其他功能
- 220   1          unsigned char status = P1;  // 读取状态
- 221   1      
- 222   1          UART_Send_String_w55("Control 3 executed - Status: 0x");
- 223   1          UART_Send_Char_w55((status >> 4) < 10 ? (status >> 4) + '0' : (status >> 4) - 10 + 'A');
- 224   1          UART_Send_Char_w55((status & 0x0F) < 10 ? (status & 0x0F) + '0' : (status & 0x0F) - 10 + 'A');
- 225   1          UART_Send_String_w55("\r\n");
- 226   1      
- 227   1          return 1;
- 228   1      }
- 229          
- 230          /**
- 231           * @brief 处理接收到的控制指令
- 232           * @param command: 控制指令字符 ('0', '1', '2', '3')
- 233           * @return 处理结果: 1-成功, 0-失败
- 234           */
- 235          unsigned char process_control_command_w55(unsigned char command)
- 236          {
- 237   1          unsigned char result = 0;
- 238   1      
- 239   1          switch (command) {
- 240   2              case '0':    // 错误处理/复位
- 241   2                  UART_Send_String_w55("This is dpj received 00000000000000000\r\n");    
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 5   
+ 219   1        unsigned char i,Data=0x00;
+ 220   1        Command|=0x01;  //将指令转换为读指令
+ 221   1        DS1302_CE=1;
+ 222   1        for(i=0;i<8;i++)
+ 223   1        {
+ 224   2          DS1302_IO=Command&(0x01<<i);
+ 225   2          DS1302_SCLK=0;
+ 226   2          DS1302_SCLK=1;
+ 227   2        }
+ 228   1        for(i=0;i<8;i++)
+ 229   1        {
+ 230   2          DS1302_SCLK=1;
+ 231   2          DS1302_SCLK=0;
+ 232   2          if(DS1302_IO){Data|=(0x01<<i);}
+ 233   2        }
+ 234   1        DS1302_CE=0;
+ 235   1        DS1302_IO=0;  //读取后将IO设置为0，否则读出的数据会出错
+ 236   1        return Data;
+ 237   1      }
+ 238          
+ 239          /**
+ 240            * @brief  DS1302设置时间，调用之后，DS1302_Time数组的数字会被设置到DS1302中
+ 241            * @param  无
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 5   
 
- 242   2                  UART_Send_String_w55("This is dpj received 00000000000000000\r\n");            
- 243   2                  UART_Send_String_w55("This is dpj received 00000000000000000\r\n");                        
- 244   2                  result = 1;
- 245   2                  // UART_Send_String_w55("Executing reset command...\r\n");
- 246   2                  // result = execute_reset_w55();
- 247   2                  break;
- 248   2      
- 249   2              case '1':    // 控制指令1
- 250   2                  UART_Send_String_w55("This is dpj received 1111111\r\n");    
- 251   2                  UART_Send_String_w55("This is dpj received 1111111\r\n");
- 252   2                  UART_Send_String_w55("This is dpj received 1111111\r\n");    
- 253   2                  result = 1;        
- 254   2                  // UART_Send_String_w55("Executing control command 1...\r\n");
- 255   2                  // result = execute_control1_w55();
- 256   2                  break;
- 257   2      
- 258   2              case '2':    // 控制指令2
- 259   2                  UART_Send_String_w55("This is dpj received 22222\r\n");
- 260   2                  UART_Send_String_w55("This is dpj received 22222\r\n");
- 261   2                  UART_Send_String_w55("This is dpj received 22222\r\n");
- 262   2                  result = 1;
- 263   2                  // UART_Send_String_w55("Executing control command 2...\r\n");
- 264   2                  // result = execute_control2_w55();
- 265   2                  break;
- 266   2      
- 267   2              case '3':    // 控制指令3
- 268   2                  UART_Send_String_w55("This is dpj received 333333\r\n");
- 269   2                  UART_Send_String_w55("This is dpj received 333333\r\n");
- 270   2                  UART_Send_String_w55("This is dpj received 333333\r\n");
- 271   2                  result = 1;
- 272   2                  // UART_Send_String_w55("Executing control command 3...\r\n");
- 273   2                  // result = execute_control3_w55();
- 274   2                  break;
- 275   2      
- 276   2              default:
- 277   2                  UART_Send_String_w55("This is dpj received ERROR！\r\n");
- 278   2                  
- 279   2                  UART_Send_String_w55("This is dpj received ERROR！\r\n");
- 280   2                  
- 281   2                  UART_Send_String_w55("This is dpj received ERROR！\r\n");
- 282   2                  // UART_Send_String_w55("Unknown command\r\n");
- 283   2                  result = 0;
- 284   2                  break;
- 285   2          }
- 286   1      
- 287   1          // ?? 发送执行结果回后端
- 288   1          send_result_to_backend_w55(command, result);
- 289   1      
- 290   1          return result;
- 291   1      }
- 292          
- 293          
- 294          /**
- 295           * @brief 接收并处理后端发送的控制指令
- 296           * @return 处理结果: 1-成功, 0-失败
- 297           */
- 298          unsigned char receive_control_command_w55(void)
- 299          {
- 300   1          unsigned char recv_buf[20];        // 接收缓冲区
- 301   1          unsigned int recv_len = 0;         // 接收数据长度
- 302   1          unsigned char socket_status;       // Socket状态
- 303   1          unsigned char command;             // 控制指令
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 6   
+ 242            * @retval 无
+ 243            */
+ 244          void DS1302_SetTime(void)
+ 245          {
+ 246   1        DS1302_WriteByte(DS1302_WP,0x00);
+ 247   1        DS1302_WriteByte(DS1302_YEAR,DS1302_Time[0]/10*16+DS1302_Time[0]%10);//十进制转BCD码后写入
+ 248   1        DS1302_WriteByte(DS1302_MONTH,DS1302_Time[1]/10*16+DS1302_Time[1]%10);
+ 249   1        DS1302_WriteByte(DS1302_DATE,DS1302_Time[2]/10*16+DS1302_Time[2]%10);
+ 250   1        DS1302_WriteByte(DS1302_HOUR,DS1302_Time[3]/10*16+DS1302_Time[3]%10);
+ 251   1        DS1302_WriteByte(DS1302_MINUTE,DS1302_Time[4]/10*16+DS1302_Time[4]%10);
+ 252   1        DS1302_WriteByte(DS1302_SECOND,DS1302_Time[5]/10*16+DS1302_Time[5]%10);
+ 253   1        DS1302_WriteByte(DS1302_DAY,DS1302_Time[6]/10*16+DS1302_Time[6]%10);
+ 254   1        DS1302_WriteByte(DS1302_WP,0x80);
+ 255   1      }
+ 256          
+ 257          /**
+ 258            * @brief  DS1302读取时间，调用之后，DS1302中的数据会被读取到DS1302_Time数组中
+ 259            * @param  无
+ 260            * @retval 无
+ 261            */
+ 262          void DS1302_ReadTime(void)
+ 263          {
+ 264   1        unsigned char Temp;
+ 265   1        Temp=DS1302_ReadByte(DS1302_YEAR);
+ 266   1        DS1302_Time[0]=Temp/16*10+Temp%16;//BCD码转十进制后读取
+ 267   1        Temp=DS1302_ReadByte(DS1302_MONTH);
+ 268   1        DS1302_Time[1]=Temp/16*10+Temp%16;
+ 269   1        Temp=DS1302_ReadByte(DS1302_DATE);
+ 270   1        DS1302_Time[2]=Temp/16*10+Temp%16;
+ 271   1        Temp=DS1302_ReadByte(DS1302_HOUR);
+ 272   1        DS1302_Time[3]=Temp/16*10+Temp%16;
+ 273   1        Temp=DS1302_ReadByte(DS1302_MINUTE);
+ 274   1        DS1302_Time[4]=Temp/16*10+Temp%16;
+ 275   1        Temp=DS1302_ReadByte(DS1302_SECOND);
+ 276   1        DS1302_Time[5]=Temp/16*10+Temp%16;
+ 277   1        Temp=DS1302_ReadByte(DS1302_DAY);
+ 278   1        DS1302_Time[6]=Temp/16*10+Temp%16;
+ 279   1      }
+ 280          
+ 281          //引脚配置：
+ 282          sbit LCD_RS=P3^0;
+ 283          sbit LCD_RW=P3^1;
+ 284          sbit LCD_EN=P3^2;
+ 285          #define LCD_DataPort P0
+ 286          
+ 287          //函数定义：
+ 288          /**
+ 289            * @brief  LCD1602延时函数，12MHz调用可延时1ms
+ 290            * @param  无
+ 291            * @retval 无
+ 292            */
+ 293          void LCD_Delay()
+ 294          {
+ 295   1        unsigned char i, j;
+ 296   1      
+ 297   1        i = 2;
+ 298   1        j = 239;
+ 299   1        do
+ 300   1        {
+ 301   2          while (--j);
+ 302   2        } while (--i);
+ 303   1      }
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 6   
 
- 304   1          unsigned char i;                   // 循环变量
- 305   1      
- 306   1          // ?? 检查Socket状态
- 307   1          socket_status = Get_Socket_Status_w55(0);
- 308   1      
- 309   1          if(socket_status == SOCK_ESTABLISHED_w55) {
- 310   2              // ?? 尝试接收来自后端的数据
- 311   2              recv_len = TCP_Recv_Data_w55(0, recv_buf, 20);
- 312   2      
- 313   2              if(recv_len > 0) {
- 314   3                  // ?? 添加字符串结束符
- 315   3                  if(recv_len < 20) {
- 316   4                      recv_buf[recv_len] = '\0';
- 317   4                  } else {
- 318   4                      recv_buf[19] = '\0';
- 319   4                  }
- 320   3      
- 321   3                  // ?? 查找有效的控制指令
- 322   3                  for(i = 0; i < recv_len; i++) {
- 323   4                      command = recv_buf[i];
- 324   4      
- 325   4                      // ?? 检查是否为有效控制指令
- 326   4                      if(command == '0' || command == '1' || command == '2' || command == '3') {
- 327   5      
- 328   5                          // ?? 串口输出收到的指令（用于调试）
- 329   5                          UART_Send_String_w55("Received command from backend: ");
- 330   5                          UART_Send_Char_w55(command);
- 331   5                          UART_Send_String_w55("\r\n");
- 332   5      
- 333   5                          // ?? 处理控制指令
- 334   5                          if(process_control_command_w55(command)) {
- 335   6                              return 1;  // 成功处理
- 336   6                          }
- 337   5                      }
- 338   4                  }
- 339   3      
- 340   3                  // ?? 如果没有找到有效指令，输出调试信息
- 341   3                  UART_Send_String_w55("Invalid command received from backend\r\n");
- 342   3              }
- 343   2          }
- 344   1      
- 345   1          return 0;
- 346   1      }
- 347          
- 348          
- 349          
- 350          //#region W5500基础函数
- 351          // W5500延时函数
- 352          void delay_ms_w55(unsigned int ms)
- 353          {
- 354   1          unsigned int i, j;
- 355   1          for(i = 0; i < ms; i++)
- 356   1              for(j = 0; j < 1000; j++);
- 357   1      }
- 358          
- 359          
- 360          // SPI写一个字节
- 361          void SPI_Write_Byte_w55(unsigned char dat)
- 362          {
- 363   1          unsigned char i;
- 364   1          for(i = 0; i < 8; i++)
- 365   1          {
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 7   
+ 304          
+ 305          /**
+ 306            * @brief  LCD1602写命令
+ 307            * @param  Command 要写入的命令
+ 308            * @retval 无
+ 309            */
+ 310          void LCD_WriteCommand(unsigned char Command)
+ 311          {
+ 312   1        LCD_RS=0;
+ 313   1        LCD_RW=0;
+ 314   1        LCD_DataPort=Command;
+ 315   1        LCD_EN=1;
+ 316   1        LCD_Delay();
+ 317   1        LCD_EN=0;
+ 318   1        LCD_Delay();
+ 319   1      }
+ 320          
+ 321          /**
+ 322            * @brief  LCD1602写数据
+ 323            * @param  Data 要写入的数据
+ 324            * @retval 无
+ 325            */
+ 326          void LCD_WriteData(unsigned char Data)
+ 327          {
+ 328   1        LCD_RS=1;
+ 329   1        LCD_RW=0;
+ 330   1        LCD_DataPort=Data;
+ 331   1        LCD_EN=1;
+ 332   1        LCD_Delay();
+ 333   1        LCD_EN=0;
+ 334   1        LCD_Delay();
+ 335   1      }
+ 336          
+ 337          /**
+ 338            * @brief  LCD1602设置光标位置
+ 339            * @param  Line 行位置，范围：1~2
+ 340            * @param  Column 列位置，范围：1~16
+ 341            * @retval 无
+ 342            */
+ 343          void LCD_SetCursor(unsigned char Line,unsigned char Column)
+ 344          {
+ 345   1        if(Line==1)
+ 346   1        {
+ 347   2          LCD_WriteCommand(0x80|(Column-1));
+ 348   2        }
+ 349   1        else if(Line==2)
+ 350   1        {
+ 351   2          LCD_WriteCommand(0x80|(Column-1+0x40));
+ 352   2        }
+ 353   1      }
+ 354          
+ 355          /**
+ 356            * @brief  LCD1602初始化函数
+ 357            * @param  无
+ 358            * @retval 无
+ 359            */
+ 360          void LCD_Init()
+ 361          {
+ 362   1        Delay(50);
+ 363   1        LCD_WriteCommand(0x38);//八位数据接口，两行显示，5*7点阵
+ 364   1        Delay(5);
+ 365   1        LCD_WriteCommand(0x0c);//显示开，光标关，闪烁关
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 7   
 
- 366   2              W5500_MOSI = (dat & 0x80) ? 1 : 0;
- 367   2              dat <<= 1;
- 368   2              W5500_SCLK = 1;
- 369   2              W5500_SCLK = 0;
- 370   2          }
+ 366   1        Delay(2);
+ 367   1        LCD_WriteCommand(0x06);//数据读写操作后，光标自动加一，画面不动
+ 368   1        Delay(2);
+ 369   1        LCD_WriteCommand(0x01);//光标复位，清屏
+ 370   1        Delay(5);
  371   1      }
  372          
- 373          // SPI读一个字节
- 374          unsigned char SPI_Read_Byte_w55(void)
- 375          {
- 376   1          unsigned char i, dat = 0;
- 377   1          for(i = 0; i < 8; i++)
- 378   1          {
- 379   2              dat <<= 1;
- 380   2              W5500_SCLK = 1;
- 381   2              if(W5500_MISO) dat |= 0x01;
- 382   2              W5500_SCLK = 0;
- 383   2          }
- 384   1          return dat;
- 385   1      }
- 386          //#endregion
- 387          
- 388          //#region W5500寄存器操作函数
- 389          // W5500写寄存器
- 390          void W5500_Write_Reg_w55(unsigned int addr, unsigned char dat)
- 391          {
- 392   1          unsigned char control_byte;
- 393   1          unsigned int real_addr = addr;
- 394   1          
- 395   1          // 判断寄存器类型并设置控制字节
- 396   1          if(addr < 0x0008) {
- 397   2              // 通用寄存器 (0x0000-0x0007)
- 398   2              control_byte = 0x04;  // 写命令，VDM=1，RWB=0，OM=00
- 399   2          } else if(addr >= 0x0008 && addr < 0x0108) {
- 400   2              // Socket 0寄存器 (0x0008-0x0107)
- 401   2              control_byte = 0x0C;  // Socket 0寄存器写命令 (BSB=00, RWB=0, OM=01)
- 402   2              real_addr = addr - 0x0008;  // 转换为Socket内偏移地址
- 403   2          } else if(addr >= 0x0108 && addr < 0x0208) {
- 404   2              // Socket 1寄存器 (0x0108-0x0207)
- 405   2              control_byte = 0x2C;  // Socket 1寄存器写命令 (BSB=01, RWB=0, OM=01)
- 406   2              real_addr = addr - 0x0108;  // 转换为Socket内偏移地址
- 407   2          } else {
- 408   2              // 其他寄存器，使用通用寄存器访问
- 409   2              control_byte = 0x04;
- 410   2          }
- 411   1          
- 412   1          W5500_SCS = 0;
- 413   1          SPI_Write_Byte_w55(real_addr >> 8);     // 地址高字节
- 414   1          SPI_Write_Byte_w55(real_addr & 0xFF);   // 地址低字节
- 415   1          SPI_Write_Byte_w55(control_byte);       // 控制字节
- 416   1          SPI_Write_Byte_w55(dat);                // 数据
- 417   1          W5500_SCS = 1;
- 418   1      }
- 419          
- 420          // W5500读寄存器
- 421          unsigned char W5500_Read_Reg_w55(unsigned int addr)
- 422          {
- 423   1          unsigned char dat;
- 424   1          unsigned char control_byte;
- 425   1          unsigned int real_addr = addr;
- 426   1          
- 427   1          // 判断寄存器类型并设置控制字节
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 8   
+ 373          /**
+ 374            * @brief  在LCD1602指定位置上显示一个字符
+ 375            * @param  Line 行位置，范围：1~2
+ 376            * @param  Column 列位置，范围：1~16
+ 377            * @param  Char 要显示的字符
+ 378            * @retval 无
+ 379            */
+ 380          void LCD_ShowChar(unsigned char Line,unsigned char Column,char Char)
+ 381          {
+ 382   1        LCD_SetCursor(Line,Column);
+ 383   1        LCD_WriteData(Char);
+ 384   1      }
+ 385          
+ 386          /**
+ 387            * @brief  在LCD1602指定位置开始显示所给字符串
+ 388            * @param  Line 起始行位置，范围：1~2
+ 389            * @param  Column 起始列位置，范围：1~16
+ 390            * @param  String 要显示的字符串
+ 391            * @retval 无
+ 392            */
+ 393          void LCD_ShowString(unsigned char Line,unsigned char Column,char *String)
+ 394          {
+ 395   1        unsigned char i;
+ 396   1        LCD_SetCursor(Line,Column);
+ 397   1        for(i=0;String[i]!='\0';i++)
+ 398   1        {
+ 399   2          LCD_WriteData(String[i]);
+ 400   2        }
+ 401   1      }
+ 402          
+ 403          /**
+ 404            * @brief  返回值=X的Y次方
+ 405            */
+ 406          int LCD_Pow(int X,int Y)
+ 407          {
+ 408   1        unsigned char i;
+ 409   1        int Result=1;
+ 410   1        for(i=0;i<Y;i++)
+ 411   1        {
+ 412   2          Result*=X;
+ 413   2        }
+ 414   1        return Result;
+ 415   1      }
+ 416          
+ 417          /**
+ 418            * @brief  在LCD1602指定位置开始显示所给数字
+ 419            * @param  Line 起始行位置，范围：1~2
+ 420            * @param  Column 起始列位置，范围：1~16
+ 421            * @param  Number 要显示的数字，范围：0~65535
+ 422            * @param  Length 要显示数字的长度，范围：1~5
+ 423            * @retval 无
+ 424            */
+ 425          void LCD_ShowNum(unsigned char Line,unsigned char Column,unsigned int Number,unsigned char Length)
+ 426          {
+ 427   1        unsigned char i;
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 8   
 
- 428   1          if(addr < 0x0008) {
- 429   2              // 通用寄存器 (0x0000-0x0007)
- 430   2              control_byte = 0x00;  // 读命令，VDM=1，RWB=1，OM=00
- 431   2          } else if(addr >= 0x0008 && addr < 0x0108) {
- 432   2              // Socket 0寄存器 (0x0008-0x0107)
- 433   2              control_byte = 0x08;  // Socket 0寄存器读命令 (BSB=00, RWB=1, OM=01)
- 434   2              real_addr = addr - 0x0008;  // 转换为Socket内偏移地址
- 435   2          } else if(addr >= 0x0108 && addr < 0x0208) {
- 436   2              // Socket 1寄存器 (0x0108-0x0207)
- 437   2              control_byte = 0x28;  // Socket 1寄存器读命令 (BSB=01, RWB=1, OM=01)
- 438   2              real_addr = addr - 0x0108;  // 转换为Socket内偏移地址
- 439   2          } else {
- 440   2              // 其他寄存器，使用通用寄存器访问
- 441   2              control_byte = 0x00;
- 442   2          }
- 443   1          
- 444   1          W5500_SCS = 0;
- 445   1          SPI_Write_Byte_w55(real_addr >> 8);     // 地址高字节
- 446   1          SPI_Write_Byte_w55(real_addr & 0xFF);   // 地址低字节
- 447   1          SPI_Write_Byte_w55(control_byte);       // 控制字节
- 448   1          dat = SPI_Read_Byte_w55();              // 读取数据
- 449   1          W5500_SCS = 1;
- 450   1          return dat;
- 451   1      }
- 452          
- 453          // W5500写缓冲区
- 454          void W5500_Write_Buffer_w55(unsigned int addr, unsigned char cb, unsigned char *buf, unsigned int len)
- 455          {
- 456   1          unsigned int i;
- 457   1          W5500_SCS = 0;
- 458   1          SPI_Write_Byte_w55(addr >> 8);     // 地址高字节
- 459   1          SPI_Write_Byte_w55(addr & 0xFF);   // 地址低字节
- 460   1          SPI_Write_Byte_w55(cb);            // 控制字节
- 461   1          for(i = 0; i < len; i++)
- 462   1          {
- 463   2              SPI_Write_Byte_w55(buf[i]);
- 464   2          }
- 465   1          W5500_SCS = 1;
- 466   1      }
- 467          
- 468          // W5500读缓冲区
- 469          void W5500_Read_Buffer_w55(unsigned int addr, unsigned char cb, unsigned char *buf, unsigned int len)
- 470          {
- 471   1          unsigned int i;
- 472   1          W5500_SCS = 0;
- 473   1          SPI_Write_Byte_w55(addr >> 8);     // 地址高字节
- 474   1          SPI_Write_Byte_w55(addr & 0xFF);   // 地址低字节
- 475   1          SPI_Write_Byte_w55(cb);            // 控制字节
- 476   1          for(i = 0; i < len; i++)
- 477   1          {
- 478   2              buf[i] = SPI_Read_Byte_w55();
- 479   2          }
- 480   1          W5500_SCS = 1;
- 481   1      }
- 482          
- 483          // W5500硬件复位
- 484          void W5500_HW_Reset_w55(void)
- 485          {
- 486   1          W5500_RST = 0;
- 487   1          delay_ms_w55(50);
- 488   1          W5500_RST = 1;
- 489   1          delay_ms_w55(200);
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 9   
+ 428   1        LCD_SetCursor(Line,Column);
+ 429   1        for(i=Length;i>0;i--)
+ 430   1        {
+ 431   2          LCD_WriteData(Number/LCD_Pow(10,i-1)%10+'0');
+ 432   2        }
+ 433   1      }
+ 434          
+ 435          /**
+ 436            * @brief  在LCD1602指定位置开始以有符号十进制显示所给数字
+ 437            * @param  Line 起始行位置，范围：1~2
+ 438            * @param  Column 起始列位置，范围：1~16
+ 439            * @param  Number 要显示的数字，范围：-32768~32767
+ 440            * @param  Length 要显示数字的长度，范围：1~5
+ 441            * @retval 无
+ 442            */
+ 443          void LCD_ShowSignedNum(unsigned char Line,unsigned char Column,int Number,unsigned char Length)
+ 444          {
+ 445   1        unsigned char i;
+ 446   1        unsigned int Number1;
+ 447   1        LCD_SetCursor(Line,Column);
+ 448   1        if(Number>=0)
+ 449   1        {
+ 450   2          LCD_WriteData('+');
+ 451   2          Number1=Number;
+ 452   2        }
+ 453   1        else
+ 454   1        {
+ 455   2          LCD_WriteData('-');
+ 456   2          Number1=-Number;
+ 457   2        }
+ 458   1        for(i=Length;i>0;i--)
+ 459   1        {
+ 460   2          LCD_WriteData(Number1/LCD_Pow(10,i-1)%10+'0');
+ 461   2        }
+ 462   1      }
+ 463          
+ 464          /**
+ 465            * @brief  在LCD1602指定位置开始以十六进制显示所给数字
+ 466            * @param  Line 起始行位置，范围：1~2
+ 467            * @param  Column 起始列位置，范围：1~16
+ 468            * @param  Number 要显示的数字，范围：0~0xFFFF
+ 469            * @param  Length 要显示数字的长度，范围：1~4
+ 470            * @retval 无
+ 471            */
+ 472          void LCD_ShowHexNum(unsigned char Line,unsigned char Column,unsigned int Number,unsigned char Length)
+ 473          {
+ 474   1        unsigned char i,SingleNumber;
+ 475   1        LCD_SetCursor(Line,Column);
+ 476   1        for(i=Length;i>0;i--)
+ 477   1        {
+ 478   2          SingleNumber=Number/LCD_Pow(16,i-1)%16;
+ 479   2          if(SingleNumber<10)
+ 480   2          {
+ 481   3            LCD_WriteData(SingleNumber+'0');
+ 482   3          }
+ 483   2          else
+ 484   2          {
+ 485   3            LCD_WriteData(SingleNumber-10+'A');
+ 486   3          }
+ 487   2        }
+ 488   1      }
+ 489          
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 9   
 
- 490   1      }
- 491          //#endregion
- 492          
- 493          //#region W5500初始化和网络配置函数
- 494          // W5500初始化
- 495          void W5500_Init_w55(void)
- 496          {
- 497   1          // 硬件复位
- 498   1          W5500_HW_Reset_w55();
- 499   1          
- 500   1          // 设置网关地址
- 501   1          W5500_Write_Buffer_w55(W5500_GAR, 0x04, gateway_w55, 4);
- 502   1          
- 503   1          // 设置子网掩码
- 504   1          W5500_Write_Buffer_w55(W5500_SUBR, 0x04, subnet_w55, 4);
- 505   1          
- 506   1          // 设置MAC地址
- 507   1          W5500_Write_Buffer_w55(W5500_SHAR, 0x04, mac_addr_w55, 6);
- 508   1          
- 509   1          // 设置IP地址
- 510   1          W5500_Write_Buffer_w55(W5500_SIPR, 0x04, local_ip_w55, 4);
- 511   1          
- 512   1          // 设置重传时间和次数
- 513   1          W5500_Write_Reg_w55(W5500_RTR, 0x07);     // 重传时间
- 514   1          W5500_Write_Reg_w55(W5500_RTR + 1, 0xD0);
- 515   1          W5500_Write_Reg_w55(W5500_RCR, 8);        // 重传次数
- 516   1      }
- 517          //#endregion
- 518          
- 519          //#region W5500 Socket操作函数
- 520          // Socket初始化
- 521          unsigned char Socket_Init_w55(unsigned char socket, unsigned char mode, unsigned int port)
- 522          {
- 523   1          unsigned int socket_base = 0x0008 + socket * 0x0100;
- 524   1          unsigned int timeout = 0;
- 525   1          unsigned char status;
- 526   1          
- 527   1          // 首先关闭Socket（如果已打开）
- 528   1          W5500_Write_Reg_w55(socket_base + Sn_CR, SOCK_CLOSE_w55);
- 529   1          delay_ms_w55(10);
- 530   1          
- 531   1          // 设置Socket模式
- 532   1          W5500_Write_Reg_w55(socket_base + Sn_MR, mode);
- 533   1          
- 534   1          // 设置端口
- 535   1          W5500_Write_Reg_w55(socket_base + Sn_PORT, port >> 8);
- 536   1          W5500_Write_Reg_w55(socket_base + Sn_PORT + 1, port & 0xFF);
- 537   1          
- 538   1          // 打开Socket
- 539   1          UART_Send_String_w55("Attempting to open socket...\r\n");
- 540   1          W5500_Write_Reg_w55(socket_base + Sn_CR, SOCK_OPEN_w55);
- 541   1          UART_Send_String_w55("Socket open command sent, waiting for CR to clear...\r\n");
- 542   1          
- 543   1          // 等待命令寄存器清零，添加超时机制
- 544   1          timeout = 0;
- 545   1          while(W5500_Read_Reg_w55(socket_base + Sn_CR) && timeout < 1000) {
- 546   2              delay_ms_w55(1);
- 547   2              timeout++;
- 548   2          }
- 549   1          
- 550   1          if(timeout >= 1000) {
- 551   2              UART_Send_String_w55("Socket open timeout!\r\n");
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 10  
+ 490          /**
+ 491            * @brief  在LCD1602指定位置开始以二进制显示所给数字
+ 492            * @param  Line 起始行位置，范围：1~2
+ 493            * @param  Column 起始列位置，范围：1~16
+ 494            * @param  Number 要显示的数字，范围：0~1111 1111 1111 1111
+ 495            * @param  Length 要显示数字的长度，范围：1~16
+ 496            * @retval 无
+ 497            */
+ 498          void LCD_ShowBinNum(unsigned char Line,unsigned char Column,unsigned int Number,unsigned char Length)
+ 499          {
+ 500   1        unsigned char i;
+ 501   1        LCD_SetCursor(Line,Column);
+ 502   1        for(i=Length;i>0;i--)
+ 503   1        {
+ 504   2          LCD_WriteData(Number/LCD_Pow(2,i-1)%2+'0');
+ 505   2        }
+ 506   1      }
+ 507          
+ 508          /**
+ 509            * @brief  获取当前时间总秒数
+ 510            * @param  无
+ 511            * @retval 当前时间的总秒数
+ 512            */
+ 513          unsigned long GetCurrentTimeInSeconds()
+ 514          {
+ 515   1          DS1302_ReadTime(); // 读取当前时间
+ 516   1          // 计算从00:00:00开始的秒数
+ 517   1          return (unsigned long)DS1302_Time[3] * 3600UL + 
+ 518   1                 (unsigned long)DS1302_Time[4] * 60UL + 
+ 519   1                 (unsigned long)DS1302_Time[5];
+ 520   1      }
+ 521          
+ 522          /**
+ 523            * @brief  设置倒计时开始时间
+ 524            * @param  无
+ 525            * @retval 无
+ 526            */
+ 527          void StartCountdown()
+ 528          {
+ 529   1          // 设置DS1302时间为0时0分0秒
+ 530   1          DS1302_Time[3] = 0; // 小时
+ 531   1          DS1302_Time[4] = 0; // 分钟
+ 532   1          DS1302_Time[5] = 0; // 秒钟
+ 533   1          DS1302_SetTime();   // 写入DS1302
+ 534   1          
+ 535   1          // 记录开始时间
+ 536   1          startTime = GetCurrentTimeInSeconds();
+ 537   1      }
+ 538          
+ 539          void display()
+ 540          {
+ 541   1          LCD_Init();         // 初始化LCD
+ 542   1          DS1302_Init();      // 初始化DS1302
+ 543   1          
+ 544   1          // 显示静态字符
+ 545   1          LCD_ShowString(1,1,"CountDown: ");
+ 546   1          LCD_ShowString(2,1,"  :  ");  // 预留时间显示位置
+ 547   1          
+ 548   1          // 启动倒计时
+ 549   1          StartCountdown();
+ 550   1          
+ 551   1         while(1)
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 10  
 
- 552   2              return 0;
- 553   2          }
- 554   1          
- 555   1          // 检查Socket状态
- 556   1          status = W5500_Read_Reg_w55(socket_base + Sn_SR);
- 557   1          if(status == SOCK_INIT_w55) {
- 558   2              UART_Send_String_w55("Socket opened successfully!\r\n");
- 559   2              return 1;
- 560   2          } else {
- 561   2              UART_Send_String_w55("Socket open failed, status: 0x");
- 562   2              // 发送状态的十六进制值
- 563   2              UART_Send_Char_w55((status >> 4) < 10 ? (status >> 4) + '0' : (status >> 4) - 10 + 'A');
- 564   2              UART_Send_Char_w55((status & 0x0F) < 10 ? (status & 0x0F) + '0' : (status & 0x0F) - 10 + 'A');
- 565   2              UART_Send_String_w55("\r\n");
- 566   2              return 0;
- 567   2          }
- 568   1      }
- 569          
- 570          
- 571          
- 572          // TCP服务器监听
- 573          unsigned char TCP_Server_Listen_w55(unsigned char socket)
- 574          {
- 575   1          unsigned int socket_base = 0x0008 + socket * 0x0100;
- 576   1          unsigned int timeout = 0;
- 577   1          unsigned char status;
- 578   1          
- 579   1          // 检查Socket状态是否为INIT
- 580   1          status = W5500_Read_Reg_w55(socket_base + Sn_SR);
- 581   1          if(status != SOCK_INIT_w55) {
- 582   2              UART_Send_String_w55("Socket not in INIT state, cannot listen\r\n");
- 583   2              return 0;
- 584   2          }
- 585   1          
- 586   1          // 发送监听命令
- 587   1          W5500_Write_Reg_w55(socket_base + Sn_CR, SOCK_LISTEN_w55);
- 588   1          
- 589   1          // 等待命令寄存器清零，添加超时机制
- 590   1          timeout = 0;
- 591   1          while(W5500_Read_Reg_w55(socket_base + Sn_CR) && timeout < 1000) {
- 592   2              delay_ms_w55(1);
- 593   2              timeout++;
- 594   2          }
- 595   1          
- 596   1          if(timeout >= 1000) {
- 597   2              UART_Send_String_w55("Listen command timeout!\r\n");
- 598   2              return 0;
- 599   2          }
- 600   1          
- 601   1          // 检查Socket状态是否变为LISTEN
- 602   1          status = W5500_Read_Reg_w55(socket_base + Sn_SR);
- 603   1          if(status == SOCK_LISTENING_w55) {
- 604   2              UART_Send_String_w55("Socket listening successfully!\r\n");
- 605   2              return 1;
- 606   2          } else {
- 607   2              UART_Send_String_w55("Listen failed, status: 0x");
- 608   2              UART_Send_Char_w55((status >> 4) < 10 ? (status >> 4) + '0' : (status >> 4) - 10 + 'A');
- 609   2              UART_Send_Char_w55((status & 0x0F) < 10 ? (status & 0x0F) + '0' : (status & 0x0F) - 10 + 'A');
- 610   2              UART_Send_String_w55("\r\n");
- 611   2              return 0;
- 612   2          }
- 613   1      }
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 11  
+ 552   1      {
+ 553   2          if(!countdownFinished) // 只在倒计时未完成时更新时间
+ 554   2          {
+ 555   3              unsigned long currentTime = GetCurrentTimeInSeconds();
+ 556   3              unsigned long elapsedTime = currentTime - startTime;
+ 557   3              unsigned long remainingTime = COUNTDOWN_MINUTES * 60 - elapsedTime;
+ 558   3      
+ 559   3              // 计算并显示正常倒计时
+ 560   3              unsigned char minutes = (unsigned char)(remainingTime / 60);
+ 561   3              unsigned char seconds = (unsigned char)(remainingTime % 60);
+ 562   3              // 检测倒计时结束
+ 563   3              if(remainingTime <= 0 || elapsedTime >= COUNTDOWN_MINUTES * 60)
+ 564   3              {
+ 565   4                  countdownFinished = 1;
+ 566   4                  remainingTime = 0;
+ 567   4                  
+ 568   4                  // 更新为结束显示
+ 569   4                  LCD_ShowString(1,1,"CountDown Finish!");
+ 570   4                  LCD_ShowNum(2,1,0,2);  // 显示00:00
+ 571   4                  LCD_ShowNum(2,4,0,2);
+ 572   4                  continue;  // 跳过后续更新
+ 573   4              }
+ 574   3      
+ 575   3              
+ 576   3              
+ 577   3              LCD_ShowNum(2,1,minutes,2);
+ 578   3              LCD_ShowNum(2,4,seconds,2);
+ 579   3          }
+ 580   2          else // 倒计时已完成
+ 581   2          {
+ 582   3      
+ 583   3          }
+ 584   2      }
+ 585   1      }
+ 586          
+ 587          
+ 588          
+ 589          
+ 590          
+ 591          
+ 592          
+ 593          // ===================================
+ 594          
+ 595          /**
+ 596           * @brief 向后端发送指令执行结果
+ 597           * @param command: 原始指令
+ 598           * @param result: 执行结果 (1-成功, 0-失败)
+ 599           */
+ 600          void send_result_to_backend_w55(unsigned char command, unsigned char result)
+ 601          {
+ 602   1          unsigned char response[16];  // 响应缓冲区
+ 603   1          unsigned char response_len = 0;  // 响应长度
+ 604   1      
+ 605   1          if (result) {
+ 606   2              // ?? 成功响应："OK:X"
+ 607   2              response[response_len++] = 'O';
+ 608   2              response[response_len++] = 'K';
+ 609   2              response[response_len++] = ':';
+ 610   2              response[response_len++] = command;
+ 611   2          } else {
+ 612   2              // ?? 失败响应："ERR:X"
+ 613   2              response[response_len++] = 'E';
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 11  
 
- 614          
- 615          // 获取Socket状态
- 616          unsigned char Get_Socket_Status_w55(unsigned char socket)
- 617          {
- 618   1          unsigned int socket_base = 0x0008 + socket * 0x0100;
- 619   1          return W5500_Read_Reg_w55(socket_base + Sn_SR);
- 620   1      }
- 621          
- 622          // TCP发送数据
- 623          void TCP_Send_Data_w55(unsigned char socket, unsigned char *buf, unsigned int len)
- 624          {
- 625   1          unsigned int socket_base = 0x0008 + socket * 0x0100;
- 626   1          unsigned int tx_wr;
- 627   1          
- 628   1          // 获取发送写指针
- 629   1          tx_wr = W5500_Read_Reg_w55(socket_base + Sn_TX_WR) << 8;
- 630   1          tx_wr |= W5500_Read_Reg_w55(socket_base + Sn_TX_WR + 1);
- 631   1          
- 632   1          // 写入发送缓冲区
- 633   1          W5500_Write_Buffer_w55(0x8000 + socket * 0x1000 + (tx_wr & 0x0FFF), (socket << 5) | 0x14, buf, len);
- 634   1          
- 635   1          // 更新发送写指针
- 636   1          tx_wr += len;
- 637   1          W5500_Write_Reg_w55(socket_base + Sn_TX_WR, tx_wr >> 8);
- 638   1          W5500_Write_Reg_w55(socket_base + Sn_TX_WR + 1, tx_wr & 0xFF);
- 639   1          
- 640   1          // 发送数据
- 641   1          W5500_Write_Reg_w55(socket_base + Sn_CR, SOCK_SEND_w55);
- 642   1          while(W5500_Read_Reg_w55(socket_base + Sn_CR));
- 643   1      }
- 644          
- 645          // TCP接收数据
- 646          unsigned int TCP_Recv_Data_w55(unsigned char socket, unsigned char *buf, unsigned int max_len)
- 647          {
- 648   1          unsigned int socket_base = 0x0008 + socket * 0x0100;
- 649   1          unsigned int rx_len, rx_rd;
- 650   1          
- 651   1          // 获取接收数据长度
- 652   1          rx_len = W5500_Read_Reg_w55(socket_base + Sn_RX_RSR) << 8;
- 653   1          rx_len |= W5500_Read_Reg_w55(socket_base + Sn_RX_RSR + 1);
- 654   1          
- 655   1          if(rx_len == 0) return 0;
- 656   1          
- 657   1          // 限制接收长度，防止缓冲区溢出
- 658   1          if(rx_len > max_len) rx_len = max_len;
- 659   1          
- 660   1          // 获取接收读指针
- 661   1          rx_rd = W5500_Read_Reg_w55(socket_base + Sn_RX_RD) << 8;
- 662   1          rx_rd |= W5500_Read_Reg_w55(socket_base + Sn_RX_RD + 1);
- 663   1          
- 664   1          // 读取接收缓冲区
- 665   1          W5500_Read_Buffer_w55(0xC000 + socket * 0x1000 + (rx_rd & 0x0FFF), (socket << 5) | 0x18, buf, rx_len);
- 666   1          
- 667   1          // 更新接收读指针
- 668   1          rx_rd += rx_len;
- 669   1          W5500_Write_Reg_w55(socket_base + Sn_RX_RD, rx_rd >> 8);
- 670   1          W5500_Write_Reg_w55(socket_base + Sn_RX_RD + 1, rx_rd & 0xFF);
- 671   1          
- 672   1          // 发送接收命令
- 673   1          W5500_Write_Reg_w55(socket_base + Sn_CR, SOCK_RECV_w55);
- 674   1          while(W5500_Read_Reg_w55(socket_base + Sn_CR));
- 675   1          
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 12  
+ 614   2              response[response_len++] = 'R';
+ 615   2              response[response_len++] = 'R';
+ 616   2              response[response_len++] = ':';
+ 617   2              response[response_len++] = command;
+ 618   2          }
+ 619   1      
+ 620   1          response[response_len++] = '\r';
+ 621   1          response[response_len++] = '\n';
+ 622   1      
+ 623   1          // ?? 通过W5500发送响应到后端
+ 624   1          if (Get_Socket_Status_w55(0) == SOCK_ESTABLISHED_w55) {
+ 625   2              TCP_Send_Data_w55(0, response, response_len);
+ 626   2              UART_Send_String_w55("Result sent to backend: ");
+ 627   2              response[response_len] = '\0';
+ 628   2              UART_Send_String_w55(response);
+ 629   2          }
+ 630   1      }
+ 631          
+ 632          /**
+ 633           * @brief 执行复位指令
+ 634           */
+ 635          unsigned char execute_reset_w55(void)
+ 636          {
+ 637   1          // ?? 复位设备状态
+ 638   1          P3 = 0x00;  // 清除所有输出
+ 639   1      
+ 640   1          UART_Send_String_w55("Device reset completed\r\n");
+ 641   1          return 1;
+ 642   1      }
+ 643          
+ 644          /**
+ 645           * @brief 执行控制指令1
+ 646           */
+ 647          unsigned char execute_control1_w55(void)
+ 648          {
+ 649   1          // ?? 根据您的实际需求修改
+ 650   1          // P3_0 = 1;  // 控制某个设备
+ 651   1      
+ 652   1          UART_Send_String_w55("Control 1 executed\r\n");
+ 653   1          return 1;
+ 654   1      }
+ 655          
+ 656          /**
+ 657           * @brief 执行控制指令2
+ 658           */
+ 659          unsigned char execute_control2_w55(void)
+ 660          {
+ 661   1          // ?? 根据您的实际需求修改
+ 662   1          // P3_1 = 1;  // 控制另一个设备
+ 663   1      
+ 664   1          UART_Send_String_w55("Control 2 executed\r\n");
+ 665   1          return 1;
+ 666   1      }
+ 667          
+ 668          /**
+ 669           * @brief 执行控制指令3
+ 670           */
+ 671          unsigned char execute_control3_w55(void)
+ 672          {
+ 673   1          // ?? 状态查询或其他功能
+ 674   1          unsigned char status = P1;  // 读取状态
+ 675   1      
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 12  
 
- 676   1          return rx_len;
- 677   1      }
- 678          //#endregion
- 679          
- 680          
- 681          // W5500串口发送字符
- 682          void UART_Send_Char_w55(unsigned char c)
- 683          {
- 684   1          SBUF = c;
- 685   1          while(!TI);
- 686   1          TI = 0;
- 687   1      }
- 688          
- 689          // W5500串口发送字符串
- 690          void UART_Send_String_w55(unsigned char *str)
- 691          {
- 692   1          while(*str)
- 693   1          {
- 694   2              UART_Send_Char_w55(*str++);
- 695   2          }
- 696   1      }
- 697          //#endregion
- 698          
- 699          //#region RC522延时函数
- 700          // RC522延时函数 - 适配11.0592MHz晶振
- 701          void delay_ms_rc(unsigned int ms) {
- 702   1          unsigned int i, j;
- 703   1          for(i = 0; i < ms; i++) {
- 704   2              for(j = 0; j < 111; j++);  // 从120改为111，适配11.0592MHz
- 705   2          }
- 706   1      }
- 707          
- 708          void delay_us_rc(unsigned int us) {
- 709   1          unsigned int i;
- 710   1          for(i = 0; i < us; i++) {
- 711   2              _nop_();_nop_();_nop_();_nop_();_nop_();
- 712   2              _nop_();_nop_();_nop_();_nop_();_nop_();
- 713   2          }
- 714   1      }
- 715          //#endregion
- 716          
- 717          //#region RC522 SPI通信函数
- 718          // RC522 SPI写字节
- 719          void RC522_WriteByte_rc(unsigned char dat) {
- 720   1          unsigned char i;
- 721   1          RC522_SCK = 0;
- 722   1          delay_us_rc(10);
- 723   1          
- 724   1          for(i = 0; i < 8; i++) {
- 725   2              RC522_MOSI = (dat & 0x80) ? 1 : 0;
- 726   2              delay_us_rc(10);
- 727   2              RC522_SCK = 1;
- 728   2              delay_us_rc(20);
- 729   2              dat <<= 1;
- 730   2              RC522_SCK = 0;
- 731   2              delay_us_rc(10);
- 732   2          }
- 733   1      }
- 734          
- 735          // RC522 SPI读字节
- 736          unsigned char RC522_ReadByte_rc(void) {
- 737   1          unsigned char i, dat;
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 13  
+ 676   1          UART_Send_String_w55("Control 3 executed - Status: 0x");
+ 677   1          UART_Send_Char_w55((status >> 4) < 10 ? (status >> 4) + '0' : (status >> 4) - 10 + 'A');
+ 678   1          UART_Send_Char_w55((status & 0x0F) < 10 ? (status & 0x0F) + '0' : (status & 0x0F) - 10 + 'A');
+ 679   1          UART_Send_String_w55("\r\n");
+ 680   1      
+ 681   1          return 1;
+ 682   1      }
+ 683          
+ 684          /**
+ 685           * @brief 处理接收到的控制指令
+ 686           * @param command: 控制指令字符 ('0', '1', '2', '3')
+ 687           * @return 处理结果: 1-成功, 0-失败
+ 688           */
+ 689          unsigned char process_control_command_w55(unsigned char command)
+ 690          {
+ 691   1          unsigned char result = 0;
+ 692   1      
+ 693   1          switch (command) {
+ 694   2              case '0':    // 错误处理/复位
+ 695   2                  UART_Send_String_w55("This is dpj received 00000000000000000\r\n");    
+ 696   2                  UART_Send_String_w55("This is dpj received 00000000000000000\r\n");            
+ 697   2                  UART_Send_String_w55("This is dpj received 00000000000000000\r\n");                        
+ 698   2                  result = 1;
+ 699   2                  // UART_Send_String_w55("Executing reset command...\r\n");
+ 700   2                  // result = execute_reset_w55();
+ 701   2                  break;
+ 702   2      
+ 703   2              case '1':    // 控制指令1
+ 704   2                  UART_Send_String_w55("This is dpj received 1111111\r\n");    
+ 705   2                  UART_Send_String_w55("This is dpj received 1111111\r\n");
+ 706   2                  UART_Send_String_w55("This is dpj received 1111111\r\n");    
+ 707   2                  result = 1;        
+ 708   2                  // UART_Send_String_w55("Executing control command 1...\r\n");
+ 709   2                  // result = execute_control1_w55();
+ 710   2                  break;
+ 711   2      
+ 712   2              case '2':    // 控制指令2
+ 713   2                  UART_Send_String_w55("This is dpj received 22222\r\n");
+ 714   2                  UART_Send_String_w55("This is dpj received 22222\r\n");
+ 715   2                  UART_Send_String_w55("This is dpj received 22222\r\n");
+ 716   2                  result = 1;
+ 717   2                  // UART_Send_String_w55("Executing control command 2...\r\n");
+ 718   2                  // result = execute_control2_w55();
+ 719   2                  break;
+ 720   2      
+ 721   2              case '3':    // 控制指令3
+ 722   2                  UART_Send_String_w55("This is dpj received 333333\r\n");
+ 723   2                  UART_Send_String_w55("This is dpj received 333333\r\n");
+ 724   2                  UART_Send_String_w55("This is dpj received 333333\r\n");
+ 725   2                  result = 1;
+ 726   2                  // UART_Send_String_w55("Executing control command 3...\r\n");
+ 727   2                  // result = execute_control3_w55();
+ 728   2                  break;
+ 729   2      
+ 730   2              default:
+ 731   2                  UART_Send_String_w55("This is dpj received ERROR！\r\n");
+ 732   2                  
+ 733   2                  UART_Send_String_w55("This is dpj received ERROR！\r\n");
+ 734   2                  
+ 735   2                  UART_Send_String_w55("This is dpj received ERROR！\r\n");
+ 736   2                  // UART_Send_String_w55("Unknown command\r\n");
+ 737   2                  result = 0;
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 13  
 
- 738   1          dat = 0;
- 739   1          RC522_SCK = 0;
- 740   1          delay_us_rc(10);
- 741   1          
- 742   1          for(i = 0; i < 8; i++) {
- 743   2              dat <<= 1;
- 744   2              RC522_SCK = 1;
- 745   2              delay_us_rc(20);
- 746   2              if(RC522_MISO) dat |= 0x01;
- 747   2              RC522_SCK = 0;
- 748   2              delay_us_rc(10);
- 749   2          }
- 750   1          return dat;
- 751   1      }
- 752          //#endregion
- 753          
- 754          //#region RC522寄存器操作函数
- 755          // RC522写寄存器
- 756          void WriteReg_rc(unsigned char addr, unsigned char val) {
- 757   1          RC522_SDA = 0;
- 758   1          delay_us_rc(10);
- 759   1          RC522_WriteByte_rc((addr << 1) & 0x7E);
- 760   1          RC522_WriteByte_rc(val);
- 761   1          delay_us_rc(10);
- 762   1          RC522_SDA = 1;
- 763   1          delay_us_rc(10);
- 764   1      }
- 765          
- 766          // RC522读寄存器
- 767          unsigned char ReadReg_rc(unsigned char addr) {
- 768   1          unsigned char val;
- 769   1          RC522_SDA = 0;
- 770   1          delay_us_rc(10);
- 771   1          RC522_WriteByte_rc(((addr << 1) & 0x7E) | 0x80);
- 772   1          val = RC522_ReadByte_rc();
- 773   1          delay_us_rc(10);
- 774   1          RC522_SDA = 1;
- 775   1          delay_us_rc(10);
- 776   1          return val;
- 777   1      }
- 778          
- 779          // RC522设置位掩码
- 780          void SetBitMask_rc(unsigned char reg, unsigned char mask) {
- 781   1          unsigned char tmp;
- 782   1          tmp = ReadReg_rc(reg);
- 783   1          WriteReg_rc(reg, tmp | mask);
- 784   1      }
- 785          
- 786          // RC522清除位掩码
- 787          void ClearBitMask_rc(unsigned char reg, unsigned char mask) {
- 788   1          unsigned char tmp;
- 789   1          tmp = ReadReg_rc(reg);
- 790   1          WriteReg_rc(reg, tmp & (~mask));
- 791   1      }
- 792          //#endregion
- 793          
- 794          //#region RC522初始化函数
- 795          // RC522初始化
- 796          void RC522_Init_rc(void) {
- 797   1          // 硬件复位
- 798   1          RC522_RST = 0;
- 799   1          delay_ms_rc(100);
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 14  
+ 738   2                  break;
+ 739   2          }
+ 740   1      
+ 741   1          // ?? 发送执行结果回后端
+ 742   1          send_result_to_backend_w55(command, result);
+ 743   1      
+ 744   1          return result;
+ 745   1      }
+ 746          
+ 747          
+ 748          /**
+ 749           * @brief 接收并处理后端发送的控制指令
+ 750           * @return 处理结果: 1-成功, 0-失败
+ 751           */
+ 752          unsigned char receive_control_command_w55(void)
+ 753          {
+ 754   1          unsigned char recv_buf[20];        // 接收缓冲区
+ 755   1          unsigned int recv_len = 0;         // 接收数据长度
+ 756   1          unsigned char socket_status;       // Socket状态
+ 757   1          unsigned char command;             // 控制指令
+ 758   1          unsigned char i;                   // 循环变量
+ 759   1      
+ 760   1          // ?? 检查Socket状态
+ 761   1          socket_status = Get_Socket_Status_w55(0);
+ 762   1      
+ 763   1          if(socket_status == SOCK_ESTABLISHED_w55) {
+ 764   2              // ?? 尝试接收来自后端的数据
+ 765   2              recv_len = TCP_Recv_Data_w55(0, recv_buf, 20);
+ 766   2      
+ 767   2              if(recv_len > 0) {
+ 768   3                  // ?? 添加字符串结束符
+ 769   3                  if(recv_len < 20) {
+ 770   4                      recv_buf[recv_len] = '\0';
+ 771   4                  } else {
+ 772   4                      recv_buf[19] = '\0';
+ 773   4                  }
+ 774   3      
+ 775   3                  // ?? 查找有效的控制指令
+ 776   3                  for(i = 0; i < recv_len; i++) {
+ 777   4                      command = recv_buf[i];
+ 778   4      
+ 779   4                      // ?? 检查是否为有效控制指令
+ 780   4                      if(command == '0' || command == '1' || command == '2' || command == '3') {
+ 781   5      
+ 782   5                          // ?? 串口输出收到的指令（用于调试）
+ 783   5                          UART_Send_String_w55("Received command from backend: ");
+ 784   5                          UART_Send_Char_w55(command);
+ 785   5                          UART_Send_String_w55("\r\n");
+ 786   5      
+ 787   5                          // ?? 处理控制指令
+ 788   5                          if(process_control_command_w55(command)) {
+ 789   6                              return 1;  // 成功处理
+ 790   6                          }
+ 791   5                      }
+ 792   4                  }
+ 793   3      
+ 794   3                  // ?? 如果没有找到有效指令，输出调试信息
+ 795   3                  UART_Send_String_w55("Invalid command received from backend\r\n");
+ 796   3              }
+ 797   2          }
+ 798   1      
+ 799   1          return 0;
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 14  
 
- 800   1          RC522_RST = 1;
- 801   1          delay_ms_rc(500);
- 802   1          
- 803   1          // 软件复位
- 804   1          WriteReg_rc(0x01, 0x0F);  // CommandReg - SoftReset
- 805   1          delay_ms_rc(100);
- 806   1          while(ReadReg_rc(0x01) & 0x10);  // 等待复位完成
- 807   1          
- 808   1          // 基本配置
- 809   1          WriteReg_rc(0x14, 0x83);  // TxControlReg - 启用TX1和TX2
- 810   1          WriteReg_rc(0x26, 0x7F);  // RFCfgReg - 最大增益
- 811   1          WriteReg_rc(0x24, 0x26);  // ModWidthReg - 调制宽度
- 812   1          WriteReg_rc(0x15, 0x40);  // TxASKReg - 100% ASK调制
- 813   1          WriteReg_rc(0x11, 0x3D);  // ModeReg - CRC初始值0x6363
- 814   1          WriteReg_rc(0x2A, 0x80);  // TModeReg - 自动启动定时器
- 815   1          WriteReg_rc(0x2B, 0xA9);  // TPrescalerReg
- 816   1          WriteReg_rc(0x2C, 0x03);  // TReloadRegH
- 817   1          WriteReg_rc(0x2D, 0xFF);  // TReloadRegL
- 818   1      }
- 819          //#endregion
- 820          
- 821          //#region RC522核心通信函数
- 822          // RC522通信函数
- 823          unsigned char RC522_Communicate_rc(unsigned char command, unsigned char *sendData, unsigned char sendLen, 
-             -unsigned char *backData, unsigned int *backLen) {
- 824   1          unsigned char status = 0;
- 825   1          unsigned char irqEn = 0x00;
- 826   1          unsigned char waitIRq = 0x00;
- 827   1          unsigned char lastBits, n, i;
- 828   1          unsigned int timeout = 0;
- 829   1          
- 830   1          switch(command) {
- 831   2              case 0x0C:  // Transceive
- 832   2                  irqEn = 0x77;
- 833   2                  waitIRq = 0x30;
- 834   2                  break;
- 835   2              default:
- 836   2                  break;
+ 800   1      }
+ 801          
+ 802          
+ 803          
+ 804          //#region W5500基础函数
+ 805          // W5500延时函数
+ 806          void delay_ms_w55(unsigned int ms)
+ 807          {
+ 808   1          unsigned int i, j;
+ 809   1          for(i = 0; i < ms; i++)
+ 810   1              for(j = 0; j < 1000; j++);
+ 811   1      }
+ 812          
+ 813          
+ 814          // SPI写一个字节
+ 815          void SPI_Write_Byte_w55(unsigned char dat)
+ 816          {
+ 817   1          unsigned char i;
+ 818   1          for(i = 0; i < 8; i++)
+ 819   1          {
+ 820   2              W5500_MOSI = (dat & 0x80) ? 1 : 0;
+ 821   2              dat <<= 1;
+ 822   2              W5500_SCLK = 1;
+ 823   2              W5500_SCLK = 0;
+ 824   2          }
+ 825   1      }
+ 826          
+ 827          // SPI读一个字节
+ 828          unsigned char SPI_Read_Byte_w55(void)
+ 829          {
+ 830   1          unsigned char i, dat = 0;
+ 831   1          for(i = 0; i < 8; i++)
+ 832   1          {
+ 833   2              dat <<= 1;
+ 834   2              W5500_SCLK = 1;
+ 835   2              if(W5500_MISO) dat |= 0x01;
+ 836   2              W5500_SCLK = 0;
  837   2          }
- 838   1          
- 839   1          WriteReg_rc(0x02, irqEn | 0x80);    // CommIEnReg - 中断使能
- 840   1          ClearBitMask_rc(0x04, 0x80);        // ComIrqReg - 清除中断请求位
- 841   1          SetBitMask_rc(0x0A, 0x80);          // FIFOLevelReg - 清空FIFO
- 842   1          WriteReg_rc(0x01, 0x00);            // CommandReg - 空闲状态
- 843   1          
- 844   1          // 向FIFO写入数据
- 845   1          for(i = 0; i < sendLen; i++) {
- 846   2              WriteReg_rc(0x09, sendData[i]);
- 847   2          }
+ 838   1          return dat;
+ 839   1      }
+ 840          //#endregion
+ 841          
+ 842          //#region W5500寄存器操作函数
+ 843          // W5500写寄存器
+ 844          void W5500_Write_Reg_w55(unsigned int addr, unsigned char dat)
+ 845          {
+ 846   1          unsigned char control_byte;
+ 847   1          unsigned int real_addr = addr;
  848   1          
- 849   1          // 执行命令
- 850   1          WriteReg_rc(0x01, command);
- 851   1          if(command == 0x0C) {
- 852   2              SetBitMask_rc(0x0D, 0x80);      // BitFramingReg - StartSend=1
- 853   2          }
- 854   1          
- 855   1          // 等待接收数据完成
- 856   1          do {
- 857   2              n = ReadReg_rc(0x04);           // ComIrqReg
- 858   2              timeout++;
- 859   2              if(timeout > 5000) {  // 从2000增加到5000
- 860   3                  status = 2;  // 超时
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 15  
+ 849   1          // 判断寄存器类型并设置控制字节
+ 850   1          if(addr < 0x0008) {
+ 851   2              // 通用寄存器 (0x0000-0x0007)
+ 852   2              control_byte = 0x04;  // 写命令，VDM=1，RWB=0，OM=00
+ 853   2          } else if(addr >= 0x0008 && addr < 0x0108) {
+ 854   2              // Socket 0寄存器 (0x0008-0x0107)
+ 855   2              control_byte = 0x0C;  // Socket 0寄存器写命令 (BSB=00, RWB=0, OM=01)
+ 856   2              real_addr = addr - 0x0008;  // 转换为Socket内偏移地址
+ 857   2          } else if(addr >= 0x0108 && addr < 0x0208) {
+ 858   2              // Socket 1寄存器 (0x0108-0x0207)
+ 859   2              control_byte = 0x2C;  // Socket 1寄存器写命令 (BSB=01, RWB=0, OM=01)
+ 860   2              real_addr = addr - 0x0108;  // 转换为Socket内偏移地址
+ 861   2          } else {
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 15  
 
- 861   3                  break;
- 862   3              }
- 863   2              delay_us_rc(50);
- 864   2          } while(!(n & 0x01) && !(n & waitIRq));
+ 862   2              // 其他寄存器，使用通用寄存器访问
+ 863   2              control_byte = 0x04;
+ 864   2          }
  865   1          
- 866   1          ClearBitMask_rc(0x0D, 0x80);        // BitFramingReg - StartSend=0
- 867   1          
- 868   1          if(timeout < 2000) {
- 869   2              if(!(ReadReg_rc(0x06) & 0x1B)) {  // ErrorReg - 无缓冲区溢出、奇偶校验错误、协议错误
- 870   3                  status = 0;  // 成功
- 871   3                  if(n & irqEn & 0x01) {
- 872   4                      status = 1;  // 未检测到卡片
- 873   4                  }
- 874   3                  
- 875   3                  if(command == 0x0C) {
- 876   4                      n = ReadReg_rc(0x0A);     // FIFOLevelReg
- 877   4                      lastBits = ReadReg_rc(0x0C) & 0x07;  // ControlReg
- 878   4                      if(lastBits) {
- 879   5                          *backLen = (n - 1) * 8 + lastBits;
- 880   5                      } else {
- 881   5                          *backLen = n * 8;
- 882   5                      }
- 883   4                      
- 884   4                      if(n == 0) {
- 885   5                          n = 1;
- 886   5                      }
- 887   4                      if(n > 16) {
- 888   5                          n = 16;
- 889   5                      }
- 890   4                      
- 891   4                      // 从FIFO读取接收到的数据
- 892   4                      for(i = 0; i < n; i++) {
- 893   5                          backData[i] = ReadReg_rc(0x09);
- 894   5                      }
- 895   4                  }
- 896   3              } else {
- 897   3                  status = 3;  // 错误
- 898   3              }
- 899   2          }
- 900   1          
- 901   1          return status;
- 902   1      }
- 903          //#endregion
- 904          
- 905          //#region RC522卡片操作函数
- 906          // 寻卡
- 907          unsigned char RC522_Request_rc(unsigned char reqMode, unsigned char *TagType) {
- 908   1          unsigned char status;
- 909   1          unsigned int backBits;
- 910   1          
- 911   1          WriteReg_rc(0x0D, 0x07);    // BitFramingReg - TxLastBits = BitFramingReg[2..0]
- 912   1          TagType[0] = reqMode;
- 913   1          status = RC522_Communicate_rc(0x0C, TagType, 1, TagType, &backBits);
- 914   1          
- 915   1          if((status != 0) || (backBits != 0x10)) {
- 916   2              status = 1;
- 917   2          }
- 918   1          
- 919   1          return status;
+ 866   1          W5500_SCS = 0;
+ 867   1          SPI_Write_Byte_w55(real_addr >> 8);     // 地址高字节
+ 868   1          SPI_Write_Byte_w55(real_addr & 0xFF);   // 地址低字节
+ 869   1          SPI_Write_Byte_w55(control_byte);       // 控制字节
+ 870   1          SPI_Write_Byte_w55(dat);                // 数据
+ 871   1          W5500_SCS = 1;
+ 872   1      }
+ 873          
+ 874          // W5500读寄存器
+ 875          unsigned char W5500_Read_Reg_w55(unsigned int addr)
+ 876          {
+ 877   1          unsigned char dat;
+ 878   1          unsigned char control_byte;
+ 879   1          unsigned int real_addr = addr;
+ 880   1          
+ 881   1          // 判断寄存器类型并设置控制字节
+ 882   1          if(addr < 0x0008) {
+ 883   2              // 通用寄存器 (0x0000-0x0007)
+ 884   2              control_byte = 0x00;  // 读命令，VDM=1，RWB=1，OM=00
+ 885   2          } else if(addr >= 0x0008 && addr < 0x0108) {
+ 886   2              // Socket 0寄存器 (0x0008-0x0107)
+ 887   2              control_byte = 0x08;  // Socket 0寄存器读命令 (BSB=00, RWB=1, OM=01)
+ 888   2              real_addr = addr - 0x0008;  // 转换为Socket内偏移地址
+ 889   2          } else if(addr >= 0x0108 && addr < 0x0208) {
+ 890   2              // Socket 1寄存器 (0x0108-0x0207)
+ 891   2              control_byte = 0x28;  // Socket 1寄存器读命令 (BSB=01, RWB=1, OM=01)
+ 892   2              real_addr = addr - 0x0108;  // 转换为Socket内偏移地址
+ 893   2          } else {
+ 894   2              // 其他寄存器，使用通用寄存器访问
+ 895   2              control_byte = 0x00;
+ 896   2          }
+ 897   1          
+ 898   1          W5500_SCS = 0;
+ 899   1          SPI_Write_Byte_w55(real_addr >> 8);     // 地址高字节
+ 900   1          SPI_Write_Byte_w55(real_addr & 0xFF);   // 地址低字节
+ 901   1          SPI_Write_Byte_w55(control_byte);       // 控制字节
+ 902   1          dat = SPI_Read_Byte_w55();              // 读取数据
+ 903   1          W5500_SCS = 1;
+ 904   1          return dat;
+ 905   1      }
+ 906          
+ 907          // W5500写缓冲区
+ 908          void W5500_Write_Buffer_w55(unsigned int addr, unsigned char cb, unsigned char *buf, unsigned int len)
+ 909          {
+ 910   1          unsigned int i;
+ 911   1          W5500_SCS = 0;
+ 912   1          SPI_Write_Byte_w55(addr >> 8);     // 地址高字节
+ 913   1          SPI_Write_Byte_w55(addr & 0xFF);   // 地址低字节
+ 914   1          SPI_Write_Byte_w55(cb);            // 控制字节
+ 915   1          for(i = 0; i < len; i++)
+ 916   1          {
+ 917   2              SPI_Write_Byte_w55(buf[i]);
+ 918   2          }
+ 919   1          W5500_SCS = 1;
  920   1      }
  921          
- 922          // 防冲突，读取卡序列号
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 16  
+ 922          // W5500读缓冲区
+ 923          void W5500_Read_Buffer_w55(unsigned int addr, unsigned char cb, unsigned char *buf, unsigned int len)
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 16  
 
- 923          unsigned char RC522_Anticoll_rc(unsigned char *serNum) {
- 924   1          unsigned char status;
- 925   1          unsigned char i;
- 926   1          unsigned char serNumCheck = 0;
- 927   1          unsigned int unLen;
- 928   1          
- 929   1          WriteReg_rc(0x0D, 0x00);    // BitFramingReg - 清除位定义
- 930   1          serNum[0] = 0x93;        // 防冲突命令
- 931   1          serNum[1] = 0x20;
- 932   1          status = RC522_Communicate_rc(0x0C, serNum, 2, serNum, &unLen);
- 933   1          
- 934   1          if(status == 0) {
- 935   2              // 校验卡序列号
- 936   2              for(i = 0; i < 4; i++) {
- 937   3                  serNumCheck ^= serNum[i];
- 938   3              }
- 939   2              if(serNumCheck != serNum[i]) {
- 940   3                  status = 1;
- 941   3              }
- 942   2          }
- 943   1          
- 944   1          return status;
- 945   1      }
+ 924          {
+ 925   1          unsigned int i;
+ 926   1          W5500_SCS = 0;
+ 927   1          SPI_Write_Byte_w55(addr >> 8);     // 地址高字节
+ 928   1          SPI_Write_Byte_w55(addr & 0xFF);   // 地址低字节
+ 929   1          SPI_Write_Byte_w55(cb);            // 控制字节
+ 930   1          for(i = 0; i < len; i++)
+ 931   1          {
+ 932   2              buf[i] = SPI_Read_Byte_w55();
+ 933   2          }
+ 934   1          W5500_SCS = 1;
+ 935   1      }
+ 936          
+ 937          // W5500硬件复位
+ 938          void W5500_HW_Reset_w55(void)
+ 939          {
+ 940   1          W5500_RST = 0;
+ 941   1          delay_ms_w55(50);
+ 942   1          W5500_RST = 1;
+ 943   1          delay_ms_w55(200);
+ 944   1      }
+ 945          //#endregion
  946          
- 947          // 选择卡片
- 948          unsigned char RC522_SelectTag_rc(unsigned char *serNum) {
- 949   1          unsigned char status;
- 950   1          unsigned char size;
- 951   1          unsigned int recvBits;
- 952   1          unsigned char buffer[9];
+ 947          //#region W5500初始化和网络配置函数
+ 948          // W5500初始化
+ 949          void W5500_Init_w55(void)
+ 950          {
+ 951   1          // 硬件复位
+ 952   1          W5500_HW_Reset_w55();
  953   1          
- 954   1          buffer[0] = 0x93;  // SELECT命令
- 955   1          buffer[1] = 0x70;
- 956   1          for(size = 0; size < 5; size++) {
- 957   2              buffer[size + 2] = *(serNum + size);
- 958   2          }
+ 954   1          // 设置网关地址
+ 955   1          W5500_Write_Buffer_w55(W5500_GAR, 0x04, gateway_w55, 4);
+ 956   1          
+ 957   1          // 设置子网掩码
+ 958   1          W5500_Write_Buffer_w55(W5500_SUBR, 0x04, subnet_w55, 4);
  959   1          
- 960   1          status = RC522_Communicate_rc(0x0C, buffer, 7, buffer, &recvBits);
- 961   1          
- 962   1          if((status == 0) && (recvBits == 0x18)) {
- 963   2              size = buffer[0];
- 964   2          } else {
- 965   2              size = 0;
- 966   2          }
- 967   1          
- 968   1          return size;
- 969   1      }
- 970          
- 971          // RC522状态检查函数
- 972          unsigned char RC522_CheckStatus_rc(void) {
- 973   1          unsigned char status;
- 974   1          
- 975   1          // 读取状态寄存器
- 976   1          status = ReadReg_rc(0x06);  // ErrorReg
- 977   1          if(status & 0x1B) {  // 检查错误位
- 978   2              // 有错误，重新初始化
- 979   2              RC522_Init_rc();
- 980   2              return 0;
- 981   2          }
- 982   1          
- 983   1          return 1;  // 状态正常
- 984   1      }
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 17  
+ 960   1          // 设置MAC地址
+ 961   1          W5500_Write_Buffer_w55(W5500_SHAR, 0x04, mac_addr_w55, 6);
+ 962   1          
+ 963   1          // 设置IP地址
+ 964   1          W5500_Write_Buffer_w55(W5500_SIPR, 0x04, local_ip_w55, 4);
+ 965   1          
+ 966   1          // 设置重传时间和次数
+ 967   1          W5500_Write_Reg_w55(W5500_RTR, 0x07);     // 重传时间
+ 968   1          W5500_Write_Reg_w55(W5500_RTR + 1, 0xD0);
+ 969   1          W5500_Write_Reg_w55(W5500_RCR, 8);        // 重传次数
+ 970   1      }
+ 971          //#endregion
+ 972          
+ 973          //#region W5500 Socket操作函数
+ 974          // Socket初始化
+ 975          unsigned char Socket_Init_w55(unsigned char socket, unsigned char mode, unsigned int port)
+ 976          {
+ 977   1          unsigned int socket_base = 0x0008 + socket * 0x0100;
+ 978   1          unsigned int timeout = 0;
+ 979   1          unsigned char status;
+ 980   1          
+ 981   1          // 首先关闭Socket（如果已打开）
+ 982   1          W5500_Write_Reg_w55(socket_base + Sn_CR, SOCK_CLOSE_w55);
+ 983   1          delay_ms_w55(10);
+ 984   1          
+ 985   1          // 设置Socket模式
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 17  
 
- 985          
- 986          // RC522读卡并通过W5500发送UID的函数
- 987          unsigned char ReadCardAndSendUID_rc(void)
- 988          {
- 989   1          unsigned char status;
- 990   1          unsigned char str[16];         // 存储卡片类型信息
- 991   1          unsigned char serNum[5];       // 存储卡片序列号(4字节UID + 1字节校验)
- 992   1          unsigned char i,retry;         // 循环变量和重试计数器
- 993   1          unsigned char uid_string[64];  // 存储格式化后的UID字符串
- 994   1          unsigned char uid_index = 0;   // 字符串索引指针
- 995   1      
- 996   1          // 在开始读卡前检查RC522状态
- 997   1          if(!RC522_CheckStatus_rc()) { // 检查RC522模块是否正常工作
- 998   2              delay_ms_rc(100);
- 999   2              return 0;
-1000   2          }
-1001   1          
-1002   1          // 添加重试机制，最多重试3次
-1003   1          for(retry = 0; retry < 3; retry++) {
-1004   2              // 寻卡
-1005   2              status = RC522_Request_rc(0x52, str);
-1006   2              if(status != 0) {
-1007   3                  delay_ms_rc(10);  // 失败后短暂延时
-1008   3                  continue;
-1009   3              }
-1010   2              
-1011   2              // 防冲突
-1012   2              status = RC522_Anticoll_rc(serNum);
-1013   2              if(status != 0) {
-1014   3                  delay_ms_rc(10);
-1015   3                  continue;
-1016   3              }
-1017   2              
-1018   2              // 选择卡片
-1019   2              status = RC522_SelectTag_rc(serNum);
-1020   2              if(status > 0) {
-1021   3                  delay_ms_rc(10);
-1022   3                  continue;
-1023   3              }
-1024   2              
-1025   2              // 成功读取，跳出重试循环
-1026   2              break;
-1027   2          }
-1028   1          
-1029   1          // 如果重试3次都失败，返回0
-1030   1          if(retry >= 3) {
-1031   2              return 0;
-1032   2          }
-1033   1          
-1034   1          // 构建UID字符串
-1035   1          uid_string[uid_index++] = 'U';
-1036   1          uid_string[uid_index++] = 'I';
-1037   1          uid_string[uid_index++] = 'D';
-1038   1          uid_string[uid_index++] = ':';
-1039   1          uid_string[uid_index++] = ' ';
-1040   1          
-1041   1          for(i = 0; i < 4; i++) {
-1042   2              unsigned char temp;
-1043   2              // 转换高4位
-1044   2              temp = serNum[i] >> 4;
-1045   2              uid_string[uid_index++] = (temp < 10) ? (temp + '0') : (temp - 10 + 'A');
-1046   2              // 转换低4位
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 18  
+ 986   1          W5500_Write_Reg_w55(socket_base + Sn_MR, mode);
+ 987   1          
+ 988   1          // 设置端口
+ 989   1          W5500_Write_Reg_w55(socket_base + Sn_PORT, port >> 8);
+ 990   1          W5500_Write_Reg_w55(socket_base + Sn_PORT + 1, port & 0xFF);
+ 991   1          
+ 992   1          // 打开Socket
+ 993   1          UART_Send_String_w55("Attempting to open socket...\r\n");
+ 994   1          W5500_Write_Reg_w55(socket_base + Sn_CR, SOCK_OPEN_w55);
+ 995   1          UART_Send_String_w55("Socket open command sent, waiting for CR to clear...\r\n");
+ 996   1          
+ 997   1          // 等待命令寄存器清零，添加超时机制
+ 998   1          timeout = 0;
+ 999   1          while(W5500_Read_Reg_w55(socket_base + Sn_CR) && timeout < 1000) {
+1000   2              delay_ms_w55(1);
+1001   2              timeout++;
+1002   2          }
+1003   1          
+1004   1          if(timeout >= 1000) {
+1005   2              UART_Send_String_w55("Socket open timeout!\r\n");
+1006   2              return 0;
+1007   2          }
+1008   1          
+1009   1          // 检查Socket状态
+1010   1          status = W5500_Read_Reg_w55(socket_base + Sn_SR);
+1011   1          if(status == SOCK_INIT_w55) {
+1012   2              UART_Send_String_w55("Socket opened successfully!\r\n");
+1013   2              return 1;
+1014   2          } else {
+1015   2              UART_Send_String_w55("Socket open failed, status: 0x");
+1016   2              // 发送状态的十六进制值
+1017   2              UART_Send_Char_w55((status >> 4) < 10 ? (status >> 4) + '0' : (status >> 4) - 10 + 'A');
+1018   2              UART_Send_Char_w55((status & 0x0F) < 10 ? (status & 0x0F) + '0' : (status & 0x0F) - 10 + 'A');
+1019   2              UART_Send_String_w55("\r\n");
+1020   2              return 0;
+1021   2          }
+1022   1      }
+1023          
+1024          
+1025          
+1026          // TCP服务器监听
+1027          unsigned char TCP_Server_Listen_w55(unsigned char socket)
+1028          {
+1029   1          unsigned int socket_base = 0x0008 + socket * 0x0100;
+1030   1          unsigned int timeout = 0;
+1031   1          unsigned char status;
+1032   1          
+1033   1          // 检查Socket状态是否为INIT
+1034   1          status = W5500_Read_Reg_w55(socket_base + Sn_SR);
+1035   1          if(status != SOCK_INIT_w55) {
+1036   2              UART_Send_String_w55("Socket not in INIT state, cannot listen\r\n");
+1037   2              return 0;
+1038   2          }
+1039   1          
+1040   1          // 发送监听命令
+1041   1          W5500_Write_Reg_w55(socket_base + Sn_CR, SOCK_LISTEN_w55);
+1042   1          
+1043   1          // 等待命令寄存器清零，添加超时机制
+1044   1          timeout = 0;
+1045   1          while(W5500_Read_Reg_w55(socket_base + Sn_CR) && timeout < 1000) {
+1046   2              delay_ms_w55(1);
+1047   2              timeout++;
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 18  
 
-1047   2              temp = serNum[i] & 0x0F;
-1048   2              uid_string[uid_index++] = (temp < 10) ? (temp + '0') : (temp - 10 + 'A');
-1049   2              
-1050   2              if(i < 3) {
-1051   3                  uid_string[uid_index++] = ' '; // 添加空格分隔
-1052   3              }
+1048   2          }
+1049   1          
+1050   1          if(timeout >= 1000) {
+1051   2              UART_Send_String_w55("Listen command timeout!\r\n");
+1052   2              return 0;
 1053   2          }
 1054   1          
-1055   1          uid_string[uid_index++] = '\r';
-1056   1          uid_string[uid_index++] = '\n';
-1057   1          uid_string[uid_index] = '\0'; // 字符串结束符
-1058   1          
-1059   1          // 通过W5500发送UID
-1060   1          TCP_Send_Data_w55(0, uid_string, uid_index);
-1061   1          
-1062   1          // 同时通过串口 输出UID
-1063   1          UART_Send_String_w55("Card detected, UID sent: ");
-1064   1          UART_Send_String_w55(uid_string);
-1065   1          
-1066   1          return 1; // 成功读取并发送
+1055   1          // 检查Socket状态是否变为LISTEN
+1056   1          status = W5500_Read_Reg_w55(socket_base + Sn_SR);
+1057   1          if(status == SOCK_LISTENING_w55) {
+1058   2              UART_Send_String_w55("Socket listening successfully!\r\n");
+1059   2              return 1;
+1060   2          } else {
+1061   2              UART_Send_String_w55("Listen failed, status: 0x");
+1062   2              UART_Send_Char_w55((status >> 4) < 10 ? (status >> 4) + '0' : (status >> 4) - 10 + 'A');
+1063   2              UART_Send_Char_w55((status & 0x0F) < 10 ? (status & 0x0F) + '0' : (status & 0x0F) - 10 + 'A');
+1064   2              UART_Send_String_w55("\r\n");
+1065   2              return 0;
+1066   2          }
 1067   1      }
 1068          
-1069          // 整合的主函数 - W5500作为TCP服务器，同时读取RC522卡片
-1070          void main_integrated(void)
+1069          // 获取Socket状态
+1070          unsigned char Get_Socket_Status_w55(unsigned char socket)
 1071          {
-1072   1          unsigned char recv_buf[64]; // 接收数据
-1073   1          unsigned int scan_count = 0; // 每隔一段时间扫描卡片
-1074   1              
-1075   1          // 统一串口初始化
-1076   1          SCON = 0x50;      // 串口工作模式1（8位数据，可变波特率）
-1077   1          TMOD &= 0x0F;     // 清除定时器1的模式位（保留定时器0设置）
-1078   1          TMOD |= 0x20;     // 设置定时器1为模式2（8位自动重装）
-1079   1          TH1 = 0xFD;       // 设置波特率为9600（11.0592MHz晶振）
-1080   1          TL1 = 0xFD;       // 初值与重装值相同
-1081   1          PCON &= 0x7F;     // 波特率不倍速
-1082   1          TR1 = 1;          // 启动定时器1
-1083   1          TI = 1;           // 设置发送中断标志（允许发送）
-1084   1          RI = 0;           // 清除接收中断标志
-1085   1          REN = 1;          // 允许串口接收
-1086   1          
-1087   1          
-1088   1          // W5500以太网模块初始化
-1089   1          W5500_Init_w55();    // 配置网络参数（IP、MAC、网关等）
-1090   1          delay_ms_w55(1000);  // 等待W5500稳定
-1091   1      
-1092   1          // RC522 RFID读卡器初始化
-1093   1          RC522_Init_rc();     // 配置RF参数和寄存器
-1094   1          delay_ms_w55(500);   // 等待RC522稳定
-1095   1              
-1096   1          // 创建TCP服务器Socket
-1097   1          Socket_Init_w55(0, 0x01, 5000);  // Socket0, TCP模式, 端口5000
-1098   1      
-1099   1          // 开始监听连接
-1100   1          TCP_Server_Listen_w55(0);
-1101   1      
-1102   1          UART_Send_String_w55("All init is ok...\r\n");
-1103   1          UART_Send_String_w55("Server listening on port 5000...\r\n");
+1072   1          unsigned int socket_base = 0x0008 + socket * 0x0100;
+1073   1          return W5500_Read_Reg_w55(socket_base + Sn_SR);
+1074   1      }
+1075          
+1076          // TCP发送数据
+1077          void TCP_Send_Data_w55(unsigned char socket, unsigned char *buf, unsigned int len)
+1078          {
+1079   1          unsigned int socket_base = 0x0008 + socket * 0x0100;
+1080   1          unsigned int tx_wr;
+1081   1          
+1082   1          // 获取发送写指针
+1083   1          tx_wr = W5500_Read_Reg_w55(socket_base + Sn_TX_WR) << 8;
+1084   1          tx_wr |= W5500_Read_Reg_w55(socket_base + Sn_TX_WR + 1);
+1085   1          
+1086   1          // 写入发送缓冲区
+1087   1          W5500_Write_Buffer_w55(0x8000 + socket * 0x1000 + (tx_wr & 0x0FFF), (socket << 5) | 0x14, buf, len);
+1088   1          
+1089   1          // 更新发送写指针
+1090   1          tx_wr += len;
+1091   1          W5500_Write_Reg_w55(socket_base + Sn_TX_WR, tx_wr >> 8);
+1092   1          W5500_Write_Reg_w55(socket_base + Sn_TX_WR + 1, tx_wr & 0xFF);
+1093   1          
+1094   1          // 发送数据
+1095   1          W5500_Write_Reg_w55(socket_base + Sn_CR, SOCK_SEND_w55);
+1096   1          while(W5500_Read_Reg_w55(socket_base + Sn_CR));
+1097   1      }
+1098          
+1099          // TCP接收数据
+1100          unsigned int TCP_Recv_Data_w55(unsigned char socket, unsigned char *buf, unsigned int max_len)
+1101          {
+1102   1          unsigned int socket_base = 0x0008 + socket * 0x0100;
+1103   1          unsigned int rx_len, rx_rd;
 1104   1          
-1105   1          while(1)
-1106   1          {
-1107   2              unsigned char status = Get_Socket_Status_w55(0); // 读取Socket 0的当前状态 -通过SPI读取W5500的Sock
-             -et状态寄存器(Sn_SR)
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 19  
+1105   1          // 获取接收数据长度
+1106   1          rx_len = W5500_Read_Reg_w55(socket_base + Sn_RX_RSR) << 8;
+1107   1          rx_len |= W5500_Read_Reg_w55(socket_base + Sn_RX_RSR + 1);
+1108   1          
+1109   1          if(rx_len == 0) return 0;
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 19  
 
-1108   2              
-1109   2              if(status == SOCK_ESTABLISHED_w55)
-1110   2              {
-1111   3                  // ?? 接收并处理来自后端的控制指令
-1112   3                  receive_control_command_w55();
-1113   3                  /*
-1114   3                  // 尝试接收数据
-1115   3                  unsigned int recv_len = TCP_Recv_Data_w55(0, recv_buf, 100);
-1116   3                  if(recv_len > 0)
-1117   3                  {
-1118   3                      // 回显接收到的数据
-1119   3                      TCP_Send_Data_w55(0, recv_buf, recv_len);
-1120   3                      UART_Send_String_w55("Data echoed to client\r\n");
-1121   3                  }
-1122   3                  */
-1123   3                  // 每隔一段时间扫描卡片
-1124   3                  scan_count++;
-1125   3                  if(scan_count % 5 == 0) { // 扫描频率
-1126   4                      if(ReadCardAndSendUID_rc()) { // 读到数据后重置
-1127   5                          scan_count = 0; // 重置计数器
-1128   5                          delay_ms_w55(1500); // 从1000增加到1500，读取成功后等待更长时间
-1129   5                      }
-1130   4                  }
-1131   3              }
-1132   2              else if(status == SOCK_CLOSE_WAIT_w55) 
-1133   2              {
-1134   3                  // 客户端请求关闭连接
-1135   3                  W5500_Write_Reg_w55(0x0008 + Sn_CR, SOCK_DISCON_w55);
-1136   3                  UART_Send_String_w55("Client disconnected\r\n");
-1137   3              }
-1138   2              else if(status == SOCK_CLOSED_w55)
-1139   2              {
-1140   3                  // Socket已关闭，重新初始化并监听
-1141   3                  UART_Send_String_w55("Socket closed, restarting...\r\n");
-1142   3                  if(Socket_Init_w55(0, 0x01, 5000)) {
-1143   4                      if(TCP_Server_Listen_w55(0)) {
-1144   5                          UART_Send_String_w55("Server restarted successfully\r\n");
-1145   5                      } else {
-1146   5                          UART_Send_String_w55("Failed to restart listening\r\n");
-1147   5                      }
-1148   4                  } else {
-1149   4                      UART_Send_String_w55("Failed to restart socket\r\n");
-1150   4                  }
-1151   3              }
-1152   2              
-1153   2              delay_ms_w55(50); // 减少延时，提高响应速度
-1154   2          }
-1155   1      }
-*** WARNING C280 IN LINE 1072 OF main.c: 'recv_buf': unreferenced local variable
-1156          
-1157          // 默认主函数 - 可以选择运行不同的功能
-1158          void main(void)
-1159          {
-1160   1           main_integrated();
-1161   1      }
-1162          
+1110   1          
+1111   1          // 限制接收长度，防止缓冲区溢出
+1112   1          if(rx_len > max_len) rx_len = max_len;
+1113   1          
+1114   1          // 获取接收读指针
+1115   1          rx_rd = W5500_Read_Reg_w55(socket_base + Sn_RX_RD) << 8;
+1116   1          rx_rd |= W5500_Read_Reg_w55(socket_base + Sn_RX_RD + 1);
+1117   1          
+1118   1          // 读取接收缓冲区
+1119   1          W5500_Read_Buffer_w55(0xC000 + socket * 0x1000 + (rx_rd & 0x0FFF), (socket << 5) | 0x18, buf, rx_len);
+1120   1          
+1121   1          // 更新接收读指针
+1122   1          rx_rd += rx_len;
+1123   1          W5500_Write_Reg_w55(socket_base + Sn_RX_RD, rx_rd >> 8);
+1124   1          W5500_Write_Reg_w55(socket_base + Sn_RX_RD + 1, rx_rd & 0xFF);
+1125   1          
+1126   1          // 发送接收命令
+1127   1          W5500_Write_Reg_w55(socket_base + Sn_CR, SOCK_RECV_w55);
+1128   1          while(W5500_Read_Reg_w55(socket_base + Sn_CR));
+1129   1          
+1130   1          return rx_len;
+1131   1      }
+1132          //#endregion
+1133          
+1134          
+1135          // W5500串口发送字符
+1136          void UART_Send_Char_w55(unsigned char c)
+1137          {
+1138   1          SBUF = c;
+1139   1          while(!TI);
+1140   1          TI = 0;
+1141   1      }
+1142          
+1143          // W5500串口发送字符串
+1144          void UART_Send_String_w55(unsigned char *str)
+1145          {
+1146   1          while(*str)
+1147   1          {
+1148   2              UART_Send_Char_w55(*str++);
+1149   2          }
+1150   1      }
+1151          //#endregion
+1152          
+1153          //#region RC522延时函数
+1154          // RC522延时函数 - 适配11.0592MHz晶振
+1155          void delay_ms_rc(unsigned int ms) {
+1156   1          unsigned int i, j;
+1157   1          for(i = 0; i < ms; i++) {
+1158   2              for(j = 0; j < 111; j++);  // 从120改为111，适配11.0592MHz
+1159   2          }
+1160   1      }
+1161          
+1162          void delay_us_rc(unsigned int us) {
+1163   1          unsigned int i;
+1164   1          for(i = 0; i < us; i++) {
+1165   2              _nop_();_nop_();_nop_();_nop_();_nop_();
+1166   2              _nop_();_nop_();_nop_();_nop_();_nop_();
+1167   2          }
+1168   1      }
+1169          //#endregion
+1170          
+1171          //#region RC522 SPI通信函数
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 20  
+
+1172          // RC522 SPI写字节
+1173          void RC522_WriteByte_rc(unsigned char dat) {
+1174   1          unsigned char i;
+1175   1          RC522_SCK = 0;
+1176   1          delay_us_rc(10);
+1177   1          
+1178   1          for(i = 0; i < 8; i++) {
+1179   2              RC522_MOSI = (dat & 0x80) ? 1 : 0;
+1180   2              delay_us_rc(10);
+1181   2              RC522_SCK = 1;
+1182   2              delay_us_rc(20);
+1183   2              dat <<= 1;
+1184   2              RC522_SCK = 0;
+1185   2              delay_us_rc(10);
+1186   2          }
+1187   1      }
+1188          
+1189          // RC522 SPI读字节
+1190          unsigned char RC522_ReadByte_rc(void) {
+1191   1          unsigned char i, dat;
+1192   1          dat = 0;
+1193   1          RC522_SCK = 0;
+1194   1          delay_us_rc(10);
+1195   1          
+1196   1          for(i = 0; i < 8; i++) {
+1197   2              dat <<= 1;
+1198   2              RC522_SCK = 1;
+1199   2              delay_us_rc(20);
+1200   2              if(RC522_MISO) dat |= 0x01;
+1201   2              RC522_SCK = 0;
+1202   2              delay_us_rc(10);
+1203   2          }
+1204   1          return dat;
+1205   1      }
+1206          //#endregion
+1207          
+1208          //#region RC522寄存器操作函数
+1209          // RC522写寄存器
+1210          void WriteReg_rc(unsigned char addr, unsigned char val) {
+1211   1          RC522_SDA = 0;
+1212   1          delay_us_rc(10);
+1213   1          RC522_WriteByte_rc((addr << 1) & 0x7E);
+1214   1          RC522_WriteByte_rc(val);
+1215   1          delay_us_rc(10);
+1216   1          RC522_SDA = 1;
+1217   1          delay_us_rc(10);
+1218   1      }
+1219          
+1220          // RC522读寄存器
+1221          unsigned char ReadReg_rc(unsigned char addr) {
+1222   1          unsigned char val;
+1223   1          RC522_SDA = 0;
+1224   1          delay_us_rc(10);
+1225   1          RC522_WriteByte_rc(((addr << 1) & 0x7E) | 0x80);
+1226   1          val = RC522_ReadByte_rc();
+1227   1          delay_us_rc(10);
+1228   1          RC522_SDA = 1;
+1229   1          delay_us_rc(10);
+1230   1          return val;
+1231   1      }
+1232          
+1233          // RC522设置位掩码
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 21  
+
+1234          void SetBitMask_rc(unsigned char reg, unsigned char mask) {
+1235   1          unsigned char tmp;
+1236   1          tmp = ReadReg_rc(reg);
+1237   1          WriteReg_rc(reg, tmp | mask);
+1238   1      }
+1239          
+1240          // RC522清除位掩码
+1241          void ClearBitMask_rc(unsigned char reg, unsigned char mask) {
+1242   1          unsigned char tmp;
+1243   1          tmp = ReadReg_rc(reg);
+1244   1          WriteReg_rc(reg, tmp & (~mask));
+1245   1      }
+1246          //#endregion
+1247          
+1248          //#region RC522初始化函数
+1249          // RC522初始化
+1250          void RC522_Init_rc(void) {
+1251   1          // 硬件复位
+1252   1          RC522_RST = 0;
+1253   1          delay_ms_rc(100);
+1254   1          RC522_RST = 1;
+1255   1          delay_ms_rc(500);
+1256   1          
+1257   1          // 软件复位
+1258   1          WriteReg_rc(0x01, 0x0F);  // CommandReg - SoftReset
+1259   1          delay_ms_rc(100);
+1260   1          while(ReadReg_rc(0x01) & 0x10);  // 等待复位完成
+1261   1          
+1262   1          // 基本配置
+1263   1          WriteReg_rc(0x14, 0x83);  // TxControlReg - 启用TX1和TX2
+1264   1          WriteReg_rc(0x26, 0x7F);  // RFCfgReg - 最大增益
+1265   1          WriteReg_rc(0x24, 0x26);  // ModWidthReg - 调制宽度
+1266   1          WriteReg_rc(0x15, 0x40);  // TxASKReg - 100% ASK调制
+1267   1          WriteReg_rc(0x11, 0x3D);  // ModeReg - CRC初始值0x6363
+1268   1          WriteReg_rc(0x2A, 0x80);  // TModeReg - 自动启动定时器
+1269   1          WriteReg_rc(0x2B, 0xA9);  // TPrescalerReg
+1270   1          WriteReg_rc(0x2C, 0x03);  // TReloadRegH
+1271   1          WriteReg_rc(0x2D, 0xFF);  // TReloadRegL
+1272   1      }
+1273          //#endregion
+1274          
+1275          //#region RC522核心通信函数
+1276          // RC522通信函数
+1277          unsigned char RC522_Communicate_rc(unsigned char command, unsigned char *sendData, unsigned char sendLen, 
+             -unsigned char *backData, unsigned int *backLen) {
+1278   1          unsigned char status = 0;
+1279   1          unsigned char irqEn = 0x00;
+1280   1          unsigned char waitIRq = 0x00;
+1281   1          unsigned char lastBits, n, i;
+1282   1          unsigned int timeout = 0;
+1283   1          
+1284   1          switch(command) {
+1285   2              case 0x0C:  // Transceive
+1286   2                  irqEn = 0x77;
+1287   2                  waitIRq = 0x30;
+1288   2                  break;
+1289   2              default:
+1290   2                  break;
+1291   2          }
+1292   1          
+1293   1          WriteReg_rc(0x02, irqEn | 0x80);    // CommIEnReg - 中断使能
+1294   1          ClearBitMask_rc(0x04, 0x80);        // ComIrqReg - 清除中断请求位
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 22  
+
+1295   1          SetBitMask_rc(0x0A, 0x80);          // FIFOLevelReg - 清空FIFO
+1296   1          WriteReg_rc(0x01, 0x00);            // CommandReg - 空闲状态
+1297   1          
+1298   1          // 向FIFO写入数据
+1299   1          for(i = 0; i < sendLen; i++) {
+1300   2              WriteReg_rc(0x09, sendData[i]);
+1301   2          }
+1302   1          
+1303   1          // 执行命令
+1304   1          WriteReg_rc(0x01, command);
+1305   1          if(command == 0x0C) {
+1306   2              SetBitMask_rc(0x0D, 0x80);      // BitFramingReg - StartSend=1
+1307   2          }
+1308   1          
+1309   1          // 等待接收数据完成
+1310   1          do {
+1311   2              n = ReadReg_rc(0x04);           // ComIrqReg
+1312   2              timeout++;
+1313   2              if(timeout > 5000) {  // 从2000增加到5000
+1314   3                  status = 2;  // 超时
+1315   3                  break;
+1316   3              }
+1317   2              delay_us_rc(50);
+1318   2          } while(!(n & 0x01) && !(n & waitIRq));
+1319   1          
+1320   1          ClearBitMask_rc(0x0D, 0x80);        // BitFramingReg - StartSend=0
+1321   1          
+1322   1          if(timeout < 2000) {
+1323   2              if(!(ReadReg_rc(0x06) & 0x1B)) {  // ErrorReg - 无缓冲区溢出、奇偶校验错误、协议错误
+1324   3                  status = 0;  // 成功
+1325   3                  if(n & irqEn & 0x01) {
+1326   4                      status = 1;  // 未检测到卡片
+1327   4                  }
+1328   3                  
+1329   3                  if(command == 0x0C) {
+1330   4                      n = ReadReg_rc(0x0A);     // FIFOLevelReg
+1331   4                      lastBits = ReadReg_rc(0x0C) & 0x07;  // ControlReg
+1332   4                      if(lastBits) {
+1333   5                          *backLen = (n - 1) * 8 + lastBits;
+1334   5                      } else {
+1335   5                          *backLen = n * 8;
+1336   5                      }
+1337   4                      
+1338   4                      if(n == 0) {
+1339   5                          n = 1;
+1340   5                      }
+1341   4                      if(n > 16) {
+1342   5                          n = 16;
+1343   5                      }
+1344   4                      
+1345   4                      // 从FIFO读取接收到的数据
+1346   4                      for(i = 0; i < n; i++) {
+1347   5                          backData[i] = ReadReg_rc(0x09);
+1348   5                      }
+1349   4                  }
+1350   3              } else {
+1351   3                  status = 3;  // 错误
+1352   3              }
+1353   2          }
+1354   1          
+1355   1          return status;
+1356   1      }
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 23  
+
+1357          //#endregion
+1358          
+1359          //#region RC522卡片操作函数
+1360          // 寻卡
+1361          unsigned char RC522_Request_rc(unsigned char reqMode, unsigned char *TagType) {
+1362   1          unsigned char status;
+1363   1          unsigned int backBits;
+1364   1          
+1365   1          WriteReg_rc(0x0D, 0x07);    // BitFramingReg - TxLastBits = BitFramingReg[2..0]
+1366   1          TagType[0] = reqMode;
+1367   1          status = RC522_Communicate_rc(0x0C, TagType, 1, TagType, &backBits);
+1368   1          
+1369   1          if((status != 0) || (backBits != 0x10)) {
+1370   2              status = 1;
+1371   2          }
+1372   1          
+1373   1          return status;
+1374   1      }
+1375          
+1376          // 防冲突，读取卡序列号
+1377          unsigned char RC522_Anticoll_rc(unsigned char *serNum) {
+1378   1          unsigned char status;
+1379   1          unsigned char i;
+1380   1          unsigned char serNumCheck = 0;
+1381   1          unsigned int unLen;
+1382   1          
+1383   1          WriteReg_rc(0x0D, 0x00);    // BitFramingReg - 清除位定义
+1384   1          serNum[0] = 0x93;        // 防冲突命令
+1385   1          serNum[1] = 0x20;
+1386   1          status = RC522_Communicate_rc(0x0C, serNum, 2, serNum, &unLen);
+1387   1          
+1388   1          if(status == 0) {
+1389   2              // 校验卡序列号
+1390   2              for(i = 0; i < 4; i++) {
+1391   3                  serNumCheck ^= serNum[i];
+1392   3              }
+1393   2              if(serNumCheck != serNum[i]) {
+1394   3                  status = 1;
+1395   3              }
+1396   2          }
+1397   1          
+1398   1          return status;
+1399   1      }
+1400          
+1401          // 选择卡片
+1402          unsigned char RC522_SelectTag_rc(unsigned char *serNum) {
+1403   1          unsigned char status;
+1404   1          unsigned char size;
+1405   1          unsigned int recvBits;
+1406   1          unsigned char buffer[9];
+1407   1          
+1408   1          buffer[0] = 0x93;  // SELECT命令
+1409   1          buffer[1] = 0x70;
+1410   1          for(size = 0; size < 5; size++) {
+1411   2              buffer[size + 2] = *(serNum + size);
+1412   2          }
+1413   1          
+1414   1          status = RC522_Communicate_rc(0x0C, buffer, 7, buffer, &recvBits);
+1415   1          
+1416   1          if((status == 0) && (recvBits == 0x18)) {
+1417   2              size = buffer[0];
+1418   2          } else {
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 24  
+
+1419   2              size = 0;
+1420   2          }
+1421   1          
+1422   1          return size;
+1423   1      }
+1424          
+1425          // RC522状态检查函数
+1426          unsigned char RC522_CheckStatus_rc(void) {
+1427   1          unsigned char status;
+1428   1          
+1429   1          // 读取状态寄存器
+1430   1          status = ReadReg_rc(0x06);  // ErrorReg
+1431   1          if(status & 0x1B) {  // 检查错误位
+1432   2              // 有错误，重新初始化
+1433   2              RC522_Init_rc();
+1434   2              return 0;
+1435   2          }
+1436   1          
+1437   1          return 1;  // 状态正常
+1438   1      }
+1439          
+1440          // RC522读卡并通过W5500发送UID的函数
+1441          unsigned char ReadCardAndSendUID_rc(void)
+1442          {
+1443   1          unsigned char status;
+1444   1          unsigned char str[16];         // 存储卡片类型信息
+1445   1          unsigned char serNum[5];       // 存储卡片序列号(4字节UID + 1字节校验)
+1446   1          unsigned char i,retry;         // 循环变量和重试计数器
+1447   1          unsigned char uid_string[64];  // 存储格式化后的UID字符串
+1448   1          unsigned char uid_index = 0;   // 字符串索引指针
+1449   1      
+1450   1          // 在开始读卡前检查RC522状态
+1451   1          if(!RC522_CheckStatus_rc()) { // 检查RC522模块是否正常工作
+1452   2              delay_ms_rc(100);
+1453   2              return 0;
+1454   2          }
+1455   1          
+1456   1          // 添加重试机制，最多重试3次
+1457   1          for(retry = 0; retry < 3; retry++) {
+1458   2              // 寻卡
+1459   2              status = RC522_Request_rc(0x52, str);
+1460   2              if(status != 0) {
+1461   3                  delay_ms_rc(10);  // 失败后短暂延时
+1462   3                  continue;
+1463   3              }
+1464   2              
+1465   2              // 防冲突
+1466   2              status = RC522_Anticoll_rc(serNum);
+1467   2              if(status != 0) {
+1468   3                  delay_ms_rc(10);
+1469   3                  continue;
+1470   3              }
+1471   2              
+1472   2              // 选择卡片
+1473   2              status = RC522_SelectTag_rc(serNum);
+1474   2              if(status > 0) {
+1475   3                  delay_ms_rc(10);
+1476   3                  continue;
+1477   3              }
+1478   2              
+1479   2              // 成功读取，跳出重试循环
+1480   2              break;
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 25  
+
+1481   2          }
+1482   1          
+1483   1          // 如果重试3次都失败，返回0
+1484   1          if(retry >= 3) {
+1485   2              return 0;
+1486   2          }
+1487   1          
+1488   1          // 构建UID字符串
+1489   1          uid_string[uid_index++] = 'U';
+1490   1          uid_string[uid_index++] = 'I';
+1491   1          uid_string[uid_index++] = 'D';
+1492   1          uid_string[uid_index++] = ':';
+1493   1          uid_string[uid_index++] = ' ';
+1494   1          
+1495   1          for(i = 0; i < 4; i++) {
+1496   2              unsigned char temp;
+1497   2              // 转换高4位
+1498   2              temp = serNum[i] >> 4;
+1499   2              uid_string[uid_index++] = (temp < 10) ? (temp + '0') : (temp - 10 + 'A');
+1500   2              // 转换低4位
+1501   2              temp = serNum[i] & 0x0F;
+1502   2              uid_string[uid_index++] = (temp < 10) ? (temp + '0') : (temp - 10 + 'A');
+1503   2              
+1504   2              if(i < 3) {
+1505   3                  uid_string[uid_index++] = ' '; // 添加空格分隔
+1506   3              }
+1507   2          }
+1508   1          
+1509   1          uid_string[uid_index++] = '\r';
+1510   1          uid_string[uid_index++] = '\n';
+1511   1          uid_string[uid_index] = '\0'; // 字符串结束符
+1512   1          
+1513   1          // 通过W5500发送UID
+1514   1          TCP_Send_Data_w55(0, uid_string, uid_index);
+1515   1          
+1516   1          // 同时通过串口 输出UID
+1517   1          UART_Send_String_w55("Card detected, UID sent: ");
+1518   1          UART_Send_String_w55(uid_string);
+1519   1          
+1520   1          return 1; // 成功读取并发送
+1521   1      }
+1522          
+1523          // 整合的主函数 - W5500作为TCP服务器，同时读取RC522卡片
+1524          void main_integrated(void)
+1525          {
+1526   1          unsigned char recv_buf[64]; // 接收数据
+1527   1          unsigned int scan_count = 0; // 每隔一段时间扫描卡片
+1528   1              
+1529   1          // 统一串口初始化
+1530   1          SCON = 0x50;      // 串口工作模式1（8位数据，可变波特率）
+1531   1          TMOD &= 0x0F;     // 清除定时器1的模式位（保留定时器0设置）
+1532   1          TMOD |= 0x20;     // 设置定时器1为模式2（8位自动重装）
+1533   1          TH1 = 0xFD;       // 设置波特率为9600（11.0592MHz晶振）
+1534   1          TL1 = 0xFD;       // 初值与重装值相同
+1535   1          PCON &= 0x7F;     // 波特率不倍速
+1536   1          TR1 = 1;          // 启动定时器1
+1537   1          TI = 1;           // 设置发送中断标志（允许发送）
+1538   1          RI = 0;           // 清除接收中断标志
+1539   1          REN = 1;          // 允许串口接收
+1540   1          
+1541   1          
+1542   1          // W5500以太网模块初始化
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 26  
+
+1543   1          W5500_Init_w55();    // 配置网络参数（IP、MAC、网关等）
+1544   1          delay_ms_w55(1000);  // 等待W5500稳定
+1545   1      
+1546   1          // RC522 RFID读卡器初始化
+1547   1          RC522_Init_rc();     // 配置RF参数和寄存器
+1548   1          delay_ms_w55(500);   // 等待RC522稳定
+1549   1              
+1550   1          // 创建TCP服务器Socket
+1551   1          Socket_Init_w55(0, 0x01, 5000);  // Socket0, TCP模式, 端口5000
+1552   1      
+1553   1          // 开始监听连接
+1554   1          TCP_Server_Listen_w55(0);
+1555   1      
+1556   1          UART_Send_String_w55("All init is ok...\r\n");
+1557   1          UART_Send_String_w55("Server listening on port 5000...\r\n");
+1558   1          
+1559   1          while(1)
+1560   1          {
+1561   2              unsigned char status = Get_Socket_Status_w55(0); // 读取Socket 0的当前状态 -通过SPI读取W5500的Sock
+             -et状态寄存器(Sn_SR)
+1562   2              
+1563   2              if(status == SOCK_ESTABLISHED_w55)
+1564   2              {
+1565   3                  // ?? 接收并处理来自后端的控制指令
+1566   3                  receive_control_command_w55();
+1567   3                  /*
+1568   3                  // 尝试接收数据
+1569   3                  unsigned int recv_len = TCP_Recv_Data_w55(0, recv_buf, 100);
+1570   3                  if(recv_len > 0)
+1571   3                  {
+1572   3                      // 回显接收到的数据
+1573   3                      TCP_Send_Data_w55(0, recv_buf, recv_len);
+1574   3                      UART_Send_String_w55("Data echoed to client\r\n");
+1575   3                  }
+1576   3                  */
+1577   3                  // 每隔一段时间扫描卡片
+1578   3                  display();
+1579   3                  scan_count++;
+1580   3                  if(scan_count % 5 == 0) { // 扫描频率
+1581   4                      if(ReadCardAndSendUID_rc()) { // 读到数据后重置
+1582   5                          scan_count = 0; // 重置计数器
+1583   5                          delay_ms_w55(1500); // 从1000增加到1500，读取成功后等待更长时间
+1584   5                      }
+1585   4                  }
+1586   3              }
+1587   2              else if(status == SOCK_CLOSE_WAIT_w55) 
+1588   2              {
+1589   3                  // 客户端请求关闭连接
+1590   3                  W5500_Write_Reg_w55(0x0008 + Sn_CR, SOCK_DISCON_w55);
+1591   3                  UART_Send_String_w55("Client disconnected\r\n");
+1592   3              }
+1593   2              else if(status == SOCK_CLOSED_w55)
+1594   2              {
+1595   3                  // Socket已关闭，重新初始化并监听
+1596   3                  UART_Send_String_w55("Socket closed, restarting...\r\n");
+1597   3                  if(Socket_Init_w55(0, 0x01, 5000)) {
+1598   4                      if(TCP_Server_Listen_w55(0)) {
+1599   5                          UART_Send_String_w55("Server restarted successfully\r\n");
+1600   5                      } else {
+1601   5                          UART_Send_String_w55("Failed to restart listening\r\n");
+1602   5                      }
+1603   4                  } else {
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 19:45:58 PAGE 27  
+
+1604   4                      UART_Send_String_w55("Failed to restart socket\r\n");
+1605   4                  }
+1606   3              }
+1607   2              
+1608   2              delay_ms_w55(50); // 减少延时，提高响应速度
+1609   2          }
+1610   1      }
+*** WARNING C280 IN LINE 1526 OF main.c: 'recv_buf': unreferenced local variable
+1611          
+1612          // 默认主函数 - 可以选择运行不同的功能
+1613          void main(void)
+1614          {
+1615   1           main_integrated();
+1616   1      }
+1617          
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =   4590    ----
-   CONSTANT SIZE    =    881    ----
-   XDATA SIZE       =     24     303
-C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 20  
-
+   CODE SIZE        =   6126    ----
+   CONSTANT SIZE    =    917    ----
+   XDATA SIZE       =     35     350
    PDATA SIZE       =   ----    ----
    DATA SIZE        =   ----    ----
    IDATA SIZE       =   ----    ----
-   BIT SIZE         =      1    ----
+   BIT SIZE         =      2    ----
 END OF MODULE INFORMATION.
 
 

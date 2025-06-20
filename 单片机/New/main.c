@@ -1,6 +1,16 @@
 #include <reg52.h>
 #include <intrins.h>
 
+// 定义倒计时时间（20分钟）
+#define COUNTDOWN_MINUTES 20
+
+
+// 倒计时结束标志
+bit countdownFinished = 0;
+
+// 倒计时开始时间（存储为秒）
+unsigned long startTime = 0;
+
 //#region W5500寄存器地址定义
 // W5500寄存器地址定义
 #define W5500_MR        0x0000  // 模式寄存器
@@ -128,7 +138,451 @@ void send_result_to_backend_w55(unsigned char command, unsigned char result);
 unsigned int TCP_Recv_Data_w55(unsigned char socket, unsigned char *buf, unsigned int max_len);
 //==============================================================================
 
+//==============================================================================
+// 时钟和LCD
+//==============================================================================
+void Delay(unsigned int xms)
+{
+	unsigned char i, j;
+	while(xms--)
+	{
+		i = 2;
+		j = 239;
+		do
+		{
+			while (--j);
+		} while (--i);
+	}
+}
 
+//引脚定义
+sbit DS1302_SCLK=P3^7;
+sbit DS1302_IO=P3^6;
+sbit DS1302_CE=P3^5;
+
+//寄存器写入地址/指令定义
+#define DS1302_SECOND		0x80
+#define DS1302_MINUTE		0x82
+#define DS1302_HOUR			0x84
+#define DS1302_DATE			0x86
+#define DS1302_MONTH		0x88
+#define DS1302_DAY			0x8A
+#define DS1302_YEAR			0x8C
+#define DS1302_WP			0x8E
+
+//时间数组，索引0~6分别为年、月、日、时、分、秒、星期
+unsigned char DS1302_Time[]={19,11,16,12,59,55,6};
+
+/**
+  * @brief  DS1302初始化
+  * @param  无
+  * @retval 无
+  */
+void DS1302_Init(void)
+{
+	DS1302_CE=0;
+	DS1302_SCLK=0;
+}
+
+/**
+  * @brief  DS1302写一个字节
+  * @param  Command 命令字/地址
+  * @param  Data 要写入的数据
+  * @retval 无
+  */
+void DS1302_WriteByte(unsigned char Command,Data)
+{
+	unsigned char i;
+	DS1302_CE=1;
+	for(i=0;i<8;i++)
+	{
+		DS1302_IO=Command&(0x01<<i);
+		DS1302_SCLK=1;
+		DS1302_SCLK=0;
+	}
+	for(i=0;i<8;i++)
+	{
+		DS1302_IO=Data&(0x01<<i);
+		DS1302_SCLK=1;
+		DS1302_SCLK=0;
+	}
+	DS1302_CE=0;
+}
+
+/**
+  * @brief  DS1302读一个字节
+  * @param  Command 命令字/地址
+  * @retval 读出的数据
+  */
+unsigned char DS1302_ReadByte(unsigned char Command)
+{
+	unsigned char i,Data=0x00;
+	Command|=0x01;	//将指令转换为读指令
+	DS1302_CE=1;
+	for(i=0;i<8;i++)
+	{
+		DS1302_IO=Command&(0x01<<i);
+		DS1302_SCLK=0;
+		DS1302_SCLK=1;
+	}
+	for(i=0;i<8;i++)
+	{
+		DS1302_SCLK=1;
+		DS1302_SCLK=0;
+		if(DS1302_IO){Data|=(0x01<<i);}
+	}
+	DS1302_CE=0;
+	DS1302_IO=0;	//读取后将IO设置为0，否则读出的数据会出错
+	return Data;
+}
+
+/**
+  * @brief  DS1302设置时间，调用之后，DS1302_Time数组的数字会被设置到DS1302中
+  * @param  无
+  * @retval 无
+  */
+void DS1302_SetTime(void)
+{
+	DS1302_WriteByte(DS1302_WP,0x00);
+	DS1302_WriteByte(DS1302_YEAR,DS1302_Time[0]/10*16+DS1302_Time[0]%10);//十进制转BCD码后写入
+	DS1302_WriteByte(DS1302_MONTH,DS1302_Time[1]/10*16+DS1302_Time[1]%10);
+	DS1302_WriteByte(DS1302_DATE,DS1302_Time[2]/10*16+DS1302_Time[2]%10);
+	DS1302_WriteByte(DS1302_HOUR,DS1302_Time[3]/10*16+DS1302_Time[3]%10);
+	DS1302_WriteByte(DS1302_MINUTE,DS1302_Time[4]/10*16+DS1302_Time[4]%10);
+	DS1302_WriteByte(DS1302_SECOND,DS1302_Time[5]/10*16+DS1302_Time[5]%10);
+	DS1302_WriteByte(DS1302_DAY,DS1302_Time[6]/10*16+DS1302_Time[6]%10);
+	DS1302_WriteByte(DS1302_WP,0x80);
+}
+
+/**
+  * @brief  DS1302读取时间，调用之后，DS1302中的数据会被读取到DS1302_Time数组中
+  * @param  无
+  * @retval 无
+  */
+void DS1302_ReadTime(void)
+{
+	unsigned char Temp;
+	Temp=DS1302_ReadByte(DS1302_YEAR);
+	DS1302_Time[0]=Temp/16*10+Temp%16;//BCD码转十进制后读取
+	Temp=DS1302_ReadByte(DS1302_MONTH);
+	DS1302_Time[1]=Temp/16*10+Temp%16;
+	Temp=DS1302_ReadByte(DS1302_DATE);
+	DS1302_Time[2]=Temp/16*10+Temp%16;
+	Temp=DS1302_ReadByte(DS1302_HOUR);
+	DS1302_Time[3]=Temp/16*10+Temp%16;
+	Temp=DS1302_ReadByte(DS1302_MINUTE);
+	DS1302_Time[4]=Temp/16*10+Temp%16;
+	Temp=DS1302_ReadByte(DS1302_SECOND);
+	DS1302_Time[5]=Temp/16*10+Temp%16;
+	Temp=DS1302_ReadByte(DS1302_DAY);
+	DS1302_Time[6]=Temp/16*10+Temp%16;
+}
+
+//引脚配置：
+sbit LCD_RS=P3^0;
+sbit LCD_RW=P3^1;
+sbit LCD_EN=P3^2;
+#define LCD_DataPort P0
+
+//函数定义：
+/**
+  * @brief  LCD1602延时函数，12MHz调用可延时1ms
+  * @param  无
+  * @retval 无
+  */
+void LCD_Delay()
+{
+	unsigned char i, j;
+
+	i = 2;
+	j = 239;
+	do
+	{
+		while (--j);
+	} while (--i);
+}
+
+/**
+  * @brief  LCD1602写命令
+  * @param  Command 要写入的命令
+  * @retval 无
+  */
+void LCD_WriteCommand(unsigned char Command)
+{
+	LCD_RS=0;
+	LCD_RW=0;
+	LCD_DataPort=Command;
+	LCD_EN=1;
+	LCD_Delay();
+	LCD_EN=0;
+	LCD_Delay();
+}
+
+/**
+  * @brief  LCD1602写数据
+  * @param  Data 要写入的数据
+  * @retval 无
+  */
+void LCD_WriteData(unsigned char Data)
+{
+	LCD_RS=1;
+	LCD_RW=0;
+	LCD_DataPort=Data;
+	LCD_EN=1;
+	LCD_Delay();
+	LCD_EN=0;
+	LCD_Delay();
+}
+
+/**
+  * @brief  LCD1602设置光标位置
+  * @param  Line 行位置，范围：1~2
+  * @param  Column 列位置，范围：1~16
+  * @retval 无
+  */
+void LCD_SetCursor(unsigned char Line,unsigned char Column)
+{
+	if(Line==1)
+	{
+		LCD_WriteCommand(0x80|(Column-1));
+	}
+	else if(Line==2)
+	{
+		LCD_WriteCommand(0x80|(Column-1+0x40));
+	}
+}
+
+/**
+  * @brief  LCD1602初始化函数
+  * @param  无
+  * @retval 无
+  */
+void LCD_Init()
+{
+	Delay(50);
+	LCD_WriteCommand(0x38);//八位数据接口，两行显示，5*7点阵
+	Delay(5);
+	LCD_WriteCommand(0x0c);//显示开，光标关，闪烁关
+	Delay(2);
+	LCD_WriteCommand(0x06);//数据读写操作后，光标自动加一，画面不动
+	Delay(2);
+	LCD_WriteCommand(0x01);//光标复位，清屏
+	Delay(5);
+}
+
+/**
+  * @brief  在LCD1602指定位置上显示一个字符
+  * @param  Line 行位置，范围：1~2
+  * @param  Column 列位置，范围：1~16
+  * @param  Char 要显示的字符
+  * @retval 无
+  */
+void LCD_ShowChar(unsigned char Line,unsigned char Column,char Char)
+{
+	LCD_SetCursor(Line,Column);
+	LCD_WriteData(Char);
+}
+
+/**
+  * @brief  在LCD1602指定位置开始显示所给字符串
+  * @param  Line 起始行位置，范围：1~2
+  * @param  Column 起始列位置，范围：1~16
+  * @param  String 要显示的字符串
+  * @retval 无
+  */
+void LCD_ShowString(unsigned char Line,unsigned char Column,char *String)
+{
+	unsigned char i;
+	LCD_SetCursor(Line,Column);
+	for(i=0;String[i]!='\0';i++)
+	{
+		LCD_WriteData(String[i]);
+	}
+}
+
+/**
+  * @brief  返回值=X的Y次方
+  */
+int LCD_Pow(int X,int Y)
+{
+	unsigned char i;
+	int Result=1;
+	for(i=0;i<Y;i++)
+	{
+		Result*=X;
+	}
+	return Result;
+}
+
+/**
+  * @brief  在LCD1602指定位置开始显示所给数字
+  * @param  Line 起始行位置，范围：1~2
+  * @param  Column 起始列位置，范围：1~16
+  * @param  Number 要显示的数字，范围：0~65535
+  * @param  Length 要显示数字的长度，范围：1~5
+  * @retval 无
+  */
+void LCD_ShowNum(unsigned char Line,unsigned char Column,unsigned int Number,unsigned char Length)
+{
+	unsigned char i;
+	LCD_SetCursor(Line,Column);
+	for(i=Length;i>0;i--)
+	{
+		LCD_WriteData(Number/LCD_Pow(10,i-1)%10+'0');
+	}
+}
+
+/**
+  * @brief  在LCD1602指定位置开始以有符号十进制显示所给数字
+  * @param  Line 起始行位置，范围：1~2
+  * @param  Column 起始列位置，范围：1~16
+  * @param  Number 要显示的数字，范围：-32768~32767
+  * @param  Length 要显示数字的长度，范围：1~5
+  * @retval 无
+  */
+void LCD_ShowSignedNum(unsigned char Line,unsigned char Column,int Number,unsigned char Length)
+{
+	unsigned char i;
+	unsigned int Number1;
+	LCD_SetCursor(Line,Column);
+	if(Number>=0)
+	{
+		LCD_WriteData('+');
+		Number1=Number;
+	}
+	else
+	{
+		LCD_WriteData('-');
+		Number1=-Number;
+	}
+	for(i=Length;i>0;i--)
+	{
+		LCD_WriteData(Number1/LCD_Pow(10,i-1)%10+'0');
+	}
+}
+
+/**
+  * @brief  在LCD1602指定位置开始以十六进制显示所给数字
+  * @param  Line 起始行位置，范围：1~2
+  * @param  Column 起始列位置，范围：1~16
+  * @param  Number 要显示的数字，范围：0~0xFFFF
+  * @param  Length 要显示数字的长度，范围：1~4
+  * @retval 无
+  */
+void LCD_ShowHexNum(unsigned char Line,unsigned char Column,unsigned int Number,unsigned char Length)
+{
+	unsigned char i,SingleNumber;
+	LCD_SetCursor(Line,Column);
+	for(i=Length;i>0;i--)
+	{
+		SingleNumber=Number/LCD_Pow(16,i-1)%16;
+		if(SingleNumber<10)
+		{
+			LCD_WriteData(SingleNumber+'0');
+		}
+		else
+		{
+			LCD_WriteData(SingleNumber-10+'A');
+		}
+	}
+}
+
+/**
+  * @brief  在LCD1602指定位置开始以二进制显示所给数字
+  * @param  Line 起始行位置，范围：1~2
+  * @param  Column 起始列位置，范围：1~16
+  * @param  Number 要显示的数字，范围：0~1111 1111 1111 1111
+  * @param  Length 要显示数字的长度，范围：1~16
+  * @retval 无
+  */
+void LCD_ShowBinNum(unsigned char Line,unsigned char Column,unsigned int Number,unsigned char Length)
+{
+	unsigned char i;
+	LCD_SetCursor(Line,Column);
+	for(i=Length;i>0;i--)
+	{
+		LCD_WriteData(Number/LCD_Pow(2,i-1)%2+'0');
+	}
+}
+
+/**
+  * @brief  获取当前时间总秒数
+  * @param  无
+  * @retval 当前时间的总秒数
+  */
+unsigned long GetCurrentTimeInSeconds()
+{
+    DS1302_ReadTime(); // 读取当前时间
+    // 计算从00:00:00开始的秒数
+    return (unsigned long)DS1302_Time[3] * 3600UL + 
+           (unsigned long)DS1302_Time[4] * 60UL + 
+           (unsigned long)DS1302_Time[5];
+}
+
+/**
+  * @brief  设置倒计时开始时间
+  * @param  无
+  * @retval 无
+  */
+void StartCountdown()
+{
+    // 设置DS1302时间为0时0分0秒
+    DS1302_Time[3] = 0; // 小时
+    DS1302_Time[4] = 0; // 分钟
+    DS1302_Time[5] = 0; // 秒钟
+    DS1302_SetTime();   // 写入DS1302
+    
+    // 记录开始时间
+    startTime = GetCurrentTimeInSeconds();
+}
+
+void display()
+{
+    LCD_Init();         // 初始化LCD
+    DS1302_Init();      // 初始化DS1302
+    
+    // 显示静态字符
+    LCD_ShowString(1,1,"CountDown: ");
+    LCD_ShowString(2,1,"  :  ");  // 预留时间显示位置
+    
+    // 启动倒计时
+    StartCountdown();
+    
+   while(1)
+{
+    if(!countdownFinished) // 只在倒计时未完成时更新时间
+    {
+        unsigned long currentTime = GetCurrentTimeInSeconds();
+        unsigned long elapsedTime = currentTime - startTime;
+        unsigned long remainingTime = COUNTDOWN_MINUTES * 60 - elapsedTime;
+
+        // 计算并显示正常倒计时
+        unsigned char minutes = (unsigned char)(remainingTime / 60);
+        unsigned char seconds = (unsigned char)(remainingTime % 60);
+        // 检测倒计时结束
+        if(remainingTime <= 0 || elapsedTime >= COUNTDOWN_MINUTES * 60)
+        {
+            countdownFinished = 1;
+            remainingTime = 0;
+            
+            // 更新为结束显示
+            LCD_ShowString(1,1,"CountDown Finish!");
+            LCD_ShowNum(2,1,0,2);  // 显示00:00
+            LCD_ShowNum(2,4,0,2);
+            continue;  // 跳过后续更新
+        }
+
+        
+        
+        LCD_ShowNum(2,1,minutes,2);
+        LCD_ShowNum(2,4,seconds,2);
+    }
+    else // 倒计时已完成
+    {
+
+    }
+}
+}
 
 
 
@@ -1121,6 +1575,7 @@ void main_integrated(void)
             }
             */
             // 每隔一段时间扫描卡片
+            display();
             scan_count++;
             if(scan_count % 5 == 0) { // 扫描频率
                 if(ReadCardAndSendUID_rc()) { // 读到数据后重置

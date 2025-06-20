@@ -341,7 +341,7 @@ class AttendanceApp:
         if self.attendance_active:
             messagebox.showwarning("警告", "考勤已在进行中")
             return
-        if self.send_data(b"START"):
+        if self.send_data(b"1"):
             self.log("考勤开始")
             self.attendance_active = True
             self.countdown_time = 20 * 60
@@ -375,7 +375,7 @@ class AttendanceApp:
         if not self.attendance_active:
             messagebox.showinfo("提示", "考勤尚未开始")
             return
-        if self.send_data(b"END"):
+        if self.send_data(b"1"):
             self.log("考勤结束")
         self.attendance_active = False
         self.countdown_running = False
