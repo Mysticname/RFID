@@ -87,7 +87,7 @@ sbit W5500_RST  = P2^5;  // 复位引脚
 // 设置W5500的IP地址，与您的电脑在同一网段
 unsigned char local_ip_w55[4] = {192, 168, 31, 56};     // W5500的IP地址
 unsigned char subnet_w55[4] = {255, 255, 255, 0};        // 子网掩码，与您的网络一致
-unsigned char gateway_w55[4] = {192, 168, 31, 131};      // 网关地址，与您的默认网关一致
+unsigned char gateway_w55[4] = {192, 168, 31, 1};      // 网关地址，与您的默认网关一致
 unsigned char mac_addr_w55[6] = {0x00, 0x08, 0xDC, 0x11, 0x11, 0x11}; // MAC地址
 
 //#region 控制指令定义

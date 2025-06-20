@@ -1,4 +1,4 @@
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 1   
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 1   
 
 
 C51 COMPILER V9.53.0.0, COMPILATION OF MODULE MAIN
@@ -62,7 +62,7 @@ line level    source
   53          #define SOCK_SYNRECV_w55    0x16
   54          #define SOCK_ESTABLISHED_w55 0x17
   55          #define SOCK_FIN_WAIT_w55   0x18
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 2   
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 2   
 
   56          #define SOCK_CLOSING_w55    0x1A
   57          #define SOCK_TIME_WAIT_w55  0x1B
@@ -98,7 +98,7 @@ line level    source
   87          // 设置W5500的IP地址，与您的电脑在同一网段
   88          unsigned char local_ip_w55[4] = {192, 168, 31, 56};     // W5500的IP地址
   89          unsigned char subnet_w55[4] = {255, 255, 255, 0};        // 子网掩码，与您的网络一致
-  90          unsigned char gateway_w55[4] = {192, 168, 31, 131};      // 网关地址，与您的默认网关一致
+  90          unsigned char gateway_w55[4] = {192, 168, 31, 1};      // 网关地址，与您的默认网关一致
   91          unsigned char mac_addr_w55[6] = {0x00, 0x08, 0xDC, 0x11, 0x11, 0x11}; // MAC地址
   92          
   93          //#region 控制指令定义
@@ -126,7 +126,7 @@ line level    source
  115          bit uart_initialized = 0;
  116          
  117          //==============================================================================
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 3   
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 3   
 
  118          // 函数声明
  119          //==============================================================================
@@ -190,7 +190,7 @@ line level    source
  177          
  178          /**
  179           * @brief 执行复位指令
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 4   
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 4   
 
  180           */
  181          unsigned char execute_reset_w55(void)
@@ -254,7 +254,7 @@ line level    source
  239   1          switch (command) {
  240   2              case '0':    // 错误处理/复位
  241   2                  UART_Send_String_w55("This is dpj received 00000000000000000\r\n");    
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 5   
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 5   
 
  242   2                  UART_Send_String_w55("This is dpj received 00000000000000000\r\n");            
  243   2                  UART_Send_String_w55("This is dpj received 00000000000000000\r\n");                        
@@ -318,7 +318,7 @@ line level    source
  301   1          unsigned int recv_len = 0;         // 接收数据长度
  302   1          unsigned char socket_status;       // Socket状态
  303   1          unsigned char command;             // 控制指令
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 6   
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 6   
 
  304   1          unsigned char i;                   // 循环变量
  305   1      
@@ -382,7 +382,7 @@ line level    source
  363   1          unsigned char i;
  364   1          for(i = 0; i < 8; i++)
  365   1          {
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 7   
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 7   
 
  366   2              W5500_MOSI = (dat & 0x80) ? 1 : 0;
  367   2              dat <<= 1;
@@ -446,7 +446,7 @@ line level    source
  425   1          unsigned int real_addr = addr;
  426   1          
  427   1          // 判断寄存器类型并设置控制字节
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 8   
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 8   
 
  428   1          if(addr < 0x0008) {
  429   2              // 通用寄存器 (0x0000-0x0007)
@@ -510,7 +510,7 @@ line level    source
  487   1          delay_ms_w55(50);
  488   1          W5500_RST = 1;
  489   1          delay_ms_w55(200);
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 9   
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 9   
 
  490   1      }
  491          //#endregion
@@ -574,7 +574,7 @@ line level    source
  549   1          
  550   1          if(timeout >= 1000) {
  551   2              UART_Send_String_w55("Socket open timeout!\r\n");
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 10  
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 10  
 
  552   2              return 0;
  553   2          }
@@ -638,7 +638,7 @@ line level    source
  611   2              return 0;
  612   2          }
  613   1      }
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 11  
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 11  
 
  614          
  615          // 获取Socket状态
@@ -702,7 +702,7 @@ line level    source
  673   1          W5500_Write_Reg_w55(socket_base + Sn_CR, SOCK_RECV_w55);
  674   1          while(W5500_Read_Reg_w55(socket_base + Sn_CR));
  675   1          
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 12  
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 12  
 
  676   1          return rx_len;
  677   1      }
@@ -766,7 +766,7 @@ line level    source
  735          // RC522 SPI读字节
  736          unsigned char RC522_ReadByte_rc(void) {
  737   1          unsigned char i, dat;
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 13  
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 13  
 
  738   1          dat = 0;
  739   1          RC522_SCK = 0;
@@ -830,7 +830,7 @@ line level    source
  797   1          // 硬件复位
  798   1          RC522_RST = 0;
  799   1          delay_ms_rc(100);
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 14  
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 14  
 
  800   1          RC522_RST = 1;
  801   1          delay_ms_rc(500);
@@ -894,7 +894,7 @@ line level    source
  858   2              timeout++;
  859   2              if(timeout > 5000) {  // 从2000增加到5000
  860   3                  status = 2;  // 超时
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 15  
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 15  
 
  861   3                  break;
  862   3              }
@@ -958,7 +958,7 @@ line level    source
  920   1      }
  921          
  922          // 防冲突，读取卡序列号
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 16  
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 16  
 
  923          unsigned char RC522_Anticoll_rc(unsigned char *serNum) {
  924   1          unsigned char status;
@@ -1022,7 +1022,7 @@ line level    source
  982   1          
  983   1          return 1;  // 状态正常
  984   1      }
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 17  
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 17  
 
  985          
  986          // RC522读卡并通过W5500发送UID的函数
@@ -1086,7 +1086,7 @@ line level    source
 1044   2              temp = serNum[i] >> 4;
 1045   2              uid_string[uid_index++] = (temp < 10) ? (temp + '0') : (temp - 10 + 'A');
 1046   2              // 转换低4位
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 18  
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 18  
 
 1047   2              temp = serNum[i] & 0x0F;
 1048   2              uid_string[uid_index++] = (temp < 10) ? (temp + '0') : (temp - 10 + 'A');
@@ -1150,7 +1150,7 @@ line level    source
 1106   1          {
 1107   2              unsigned char status = Get_Socket_Status_w55(0); // 读取Socket 0的当前状态 -通过SPI读取W5500的Sock
              -et状态寄存器(Sn_SR)
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 19  
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 19  
 
 1108   2              
 1109   2              if(status == SOCK_ESTABLISHED_w55)
@@ -1214,7 +1214,7 @@ MODULE INFORMATION:   STATIC OVERLAYABLE
    CODE SIZE        =   4590    ----
    CONSTANT SIZE    =    881    ----
    XDATA SIZE       =     24     303
-C51 COMPILER V9.53.0.0   MAIN                                                              06/19/2025 20:51:59 PAGE 20  
+C51 COMPILER V9.53.0.0   MAIN                                                              06/20/2025 15:32:35 PAGE 20  
 
    PDATA SIZE       =   ----    ----
    DATA SIZE        =   ----    ----

@@ -1,4 +1,4 @@
-BL51 BANKED LINKER/LOCATER V6.22                                                        06/19/2025  20:51:59  PAGE 1
+BL51 BANKED LINKER/LOCATER V6.22                                                        06/20/2025  15:32:35  PAGE 1
 
 
 BL51 BANKED LINKER/LOCATER V6.22, INVOKED BY:
@@ -59,7 +59,7 @@ LINK MAP OF MODULE:  RFID (?C_STARTUP)
             CODE    11D3H     0075H     UNIT         ?PR?W5500_INIT_W55?MAIN
             CODE    1248H     0073H     UNIT         ?PR?_W5500_WRITE_REG_W55?MAIN
             CODE    12BBH     006EH     UNIT         ?PR?_RC522_REQUEST_RC?MAIN
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 2
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 2
 
 
             CODE    1329H     006BH     UNIT         ?PR?_W5500_READ_REG_W55?MAIN
@@ -119,7 +119,7 @@ SEGMENT                                         XDATA_GROUP
 
 ?PR?W5500_INIT_W55?MAIN                       -----    -----
   +--> ?PR?W5500_HW_RESET_W55?MAIN
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 3
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 3
 
 
   +--> ?PR?_W5500_WRITE_BUFFER_W55?MAIN
@@ -179,7 +179,7 @@ SEGMENT                                         XDATA_GROUP
   +--> ?PR?_UART_SEND_CHAR_W55?MAIN
 
 ?PR?_GET_SOCKET_STATUS_W55?MAIN               -----    -----
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 4
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 4
 
 
   +--> ?PR?_W5500_READ_REG_W55?MAIN
@@ -239,7 +239,7 @@ SEGMENT                                         XDATA_GROUP
   +--> ?PR?_WRITEREG_RC?MAIN
   +--> ?PR?_CLEARBITMASK_RC?MAIN
   +--> ?PR?_SETBITMASK_RC?MAIN
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 5
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 5
 
 
   +--> ?PR?_READREG_RC?MAIN
@@ -299,7 +299,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   C:114BH         LINE#         136
   C:114DH         LINE#         185
   C:1150H         LINE#         196
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 6
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 6
 
 
   -------         ENDMOD        ?C_STARTUP
@@ -359,7 +359,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   C:1705H         PUBLIC        execute_control2_w55
   C:1636H         PUBLIC        _ReadReg_rc
   C:13FBH         PUBLIC        execute_control3_w55
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 7
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 7
 
 
   C:0E86H         PUBLIC        receive_control_command_w55
@@ -419,7 +419,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   C:16EAH         LINE#         181
   C:16EAH         LINE#         182
   C:16EAH         LINE#         184
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 8
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 8
 
 
   C:16EDH         LINE#         186
@@ -479,7 +479,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   C:105BH         LINE#         259
   C:1064H         LINE#         260
   C:106DH         LINE#         261
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 9
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 9
 
 
   C:1073H         LINE#         262
@@ -539,7 +539,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   C:0F58H         LINE#         346
   -------         ENDPROC       RECEIVE_CONTROL_COMMAND_W55
   -------         PROC          _DELAY_MS_W55
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 10
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 10
 
 
   D:0006H         SYMBOL        ms
@@ -599,7 +599,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   D:0006H         SYMBOL        addr
   D:0005H         SYMBOL        dat
   -------         DO            
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 11
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 11
 
 
   D:0004H         SYMBOL        control_byte
@@ -659,7 +659,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   C:1386H         LINE#         444
   C:1388H         LINE#         445
   C:138BH         LINE#         446
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 12
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 12
 
 
   C:138BH         LINE#         447
@@ -719,7 +719,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   C:16DCH         LINE#         487
   C:16E3H         LINE#         488
   C:16E5H         LINE#         489
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 13
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 13
 
 
   -------         ENDPROC       W5500_HW_RESET_W55
@@ -779,7 +779,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   C:0857H         LINE#         566
   C:0859H         LINE#         567
   C:0859H         LINE#         568
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 14
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 14
 
 
   -------         ENDPROC       _SOCKET_INIT_W55
@@ -839,7 +839,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   X:009FH         SYMBOL        len
   -------         DO            
   X:00A1H         SYMBOL        socket_base
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 15
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 15
 
 
   X:00A3H         SYMBOL        tx_wr
@@ -899,7 +899,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   C:14EDH         SYMBOL        L?0252
   -------         PROC          _UART_SEND_STRING_W55
   X:009BH         SYMBOL        str
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 16
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 16
 
 
   C:14F3H         LINE#         690
@@ -959,7 +959,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   -------         ENDPROC       _RC522_WRITEBYTE_RC
   -------         PROC          RC522_READBYTE_RC
   -------         DO            
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 17
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 17
 
 
   D:0002H         SYMBOL        i
@@ -1019,7 +1019,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   C:16BFH         LINE#         783
   -------         ENDPROC       _SETBITMASK_RC
   -------         PROC          _CLEARBITMASK_RC
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 18
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 18
 
 
   D:0001H         SYMBOL        reg
@@ -1079,7 +1079,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   C:03A2H         LINE#         836
   C:03A2H         LINE#         837
   C:03A2H         LINE#         839
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 19
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 19
 
 
   C:03AEH         LINE#         840
@@ -1139,7 +1139,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   -------         DO            
   D:0007H         SYMBOL        status
   X:009FH         SYMBOL        backBits
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 20
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 20
 
 
   -------         ENDDO         
@@ -1199,7 +1199,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   C:113CH         LINE#         965
   C:1141H         LINE#         966
   C:1141H         LINE#         968
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 21
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 21
 
 
   C:1146H         LINE#         969
@@ -1259,7 +1259,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   C:05ACH         LINE#         1031
   C:05AFH         LINE#         1032
   C:05AFH         LINE#         1035
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 22
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 22
 
 
   C:05C3H         LINE#         1036
@@ -1319,7 +1319,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   C:0DF2H         LINE#         1109
   C:0DF6H         LINE#         1110
   C:0DF6H         LINE#         1112
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 23
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 23
 
 
   C:0DF9H         LINE#         1124
@@ -1379,7 +1379,7 @@ SYMBOL TABLE OF MODULE:  RFID (?C_STARTUP)
   -------         ENDMOD        ?C?UIDIV
 
   -------         MODULE        ?C?ILDIX
-BL51 BANKED LINKER/LOCATER V6.22                                                      06/19/2025  20:51:59  PAGE 24
+BL51 BANKED LINKER/LOCATER V6.22                                                      06/20/2025  15:32:35  PAGE 24
 
 
   C:0B77H         PUBLIC        ?C?ILDIX

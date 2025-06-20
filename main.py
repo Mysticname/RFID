@@ -111,11 +111,11 @@ class AttendanceApp:
         # TCP地址和端口
         ttk.Label(self.master, text="TCP地址:").grid(row=row, column=0, sticky='w', padx=5)
         self.entry_tcp_ip = ttk.Entry(self.master)
-        self.entry_tcp_ip.insert(0, "127.0.0.1")
+        self.entry_tcp_ip.insert(0, "192.168.31.56")
         self.entry_tcp_ip.grid(row=row, column=1, padx=5, sticky='w')
         ttk.Label(self.master, text="端口:").grid(row=row, column=2, sticky='w', padx=5)
         self.entry_tcp_port = ttk.Entry(self.master, width=6)
-        self.entry_tcp_port.insert(0, "9000")
+        self.entry_tcp_port.insert(0, "5000")
         self.entry_tcp_port.grid(row=row, column=3, sticky='w')
         row += 1
 
@@ -415,7 +415,7 @@ class AttendanceApp:
             # 去掉所有空格
             uid_str = uid_part.replace(' ', '')  # "3A7FB201"
 
-            self.log(f"收到UID字符串(无空格): {uid_str}")
+            self.log(f"收到UID字符串: {uid_str}")
 
 
             if self.attendance_active:
